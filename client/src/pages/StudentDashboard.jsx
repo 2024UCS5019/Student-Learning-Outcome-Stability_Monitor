@@ -1,0 +1,143 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import AppLayout from "../components/AppLayout";
+import api from "../services/api";
+
+const StudentDashboard = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data: result } = await api.get(`/students/${id}/dashboard`);
+        setData(result);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [id]);
+
+  const downloadReport = async () => {
+    window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/reports/student/${id}/pdf`, '_blank');
+  };
+
+  if (loading) return <AppLayout title="Loading..."><p>Loading student data...</p></AppLayout>;
+  if (!data) return <AppLayout title="Error"><p>Student not found</p></AppLayout>;
+
+  const getRiskColor = (risk) => {
+    if (risk === "Low") return "text-green-600 bg-green-100";
+    if (risk === "Medium") return "text-yellow-600 bg-yellow-100";
+    return "text-red-600 bg-red-100";
+  };
+
+  const getStabilityColor = (stability) => {
+    if (stability === "Stable") return "text-blue-600 bg-blue-100";
+    if (stability === "Improving") return "text-green-600 bg-green-100";
+    return "text-orange-600 bg-orange-100";
+  };
+
+  return (
+    <AppLayout title={`${data.student.name} - Dashboard`}>
+      <button onClick={() => navigate("/students")} className="mb-4 px-4 py-2 text-sm bg-gray-200 rounded-lg hover:bg-gray-300">
+        ← Back to Students
+      </button>
+
+      {/* Profile Section */}
+      <div className="card-panel p-6 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-sky-600 text-white flex items-center justify-center text-2xl font-bold">
+            {data.student.name.charAt(0)}
+          </div>
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold text-ink">{data.student.name}</h2>
+            <p className="text-gray-600">{data.student.studentId} • {data.student.department} • Year {data.student.year}</p>
+          </div>
+          <button onClick={downloadReport} className="px-4 py-2 bg-ink text-white rounded-lg hover:bg-gray-800">
+            Download Report
+          </button>
+        </div>
+      </div>
+
+      {/* Overview Cards */}
+      <div className="grid md:grid-cols-4 gap-4 mb-6">
+        <div className="card-panel p-4">
+          <p className="text-sm text-gray-600">Average Score</p>
+          <p className="text-3xl font-bold text-ink">{data.averageScore.toFixed(1)}%</p>
+        </div>
+        <div className="card-panel p-4">
+          <p className="text-sm text-gray-600">Attendance</p>
+          <p className="text-3xl font-bold text-ink">{data.overallAttendance.toFixed(1)}%</p>
+        </div>
+        <div className="card-panel p-4">
+          <p className="text-sm text-gray-600">Stability</p>
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStabilityColor(data.stability)}`}>
+            {data.stability}
+          </span>
+        </div>
+        <div className="card-panel p-4">
+          <p className="text-sm text-gray-600">Risk Level</p>
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getRiskColor(data.riskLevel)}`}>
+            {data.riskLevel}
+          </span>
+        </div>
+      </div>
+
+      {/* Performance Chart */}
+      <div className="card-panel p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">Performance Trend</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data.performanceTrend}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="test" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="marks" stroke="#0ea5e9" strokeWidth={2} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Subject-wise Performance */}
+      <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className="card-panel p-6">
+          <h3 className="text-lg font-semibold mb-4">Subject-wise Marks</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={data.subjectMarks}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="subject" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="average" fill="#0ea5e9" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="card-panel p-6">
+          <h3 className="text-lg font-semibold mb-4">Subject-wise Attendance</h3>
+          <div className="space-y-4">
+            {data.subjectAttendance.map((item, idx) => (
+              <div key={idx}>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">{item.subject}</span>
+                  <span className="text-sm font-semibold">{item.percentage}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-sky-600 h-2 rounded-full" style={{ width: `${item.percentage}%` }}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </AppLayout>
+  );
+};
+
+export default StudentDashboard;

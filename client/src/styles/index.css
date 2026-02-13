@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #000000;
+  background: #f0fdfa;
+}
+
+body {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+
+.app-bg {
+  background:
+    radial-gradient(600px 400px at 20% -10%, rgba(20, 184, 166, 0.2), transparent 70%),
+    radial-gradient(700px 500px at 110% 10%, rgba(45, 212, 191, 0.15), transparent 60%),
+    linear-gradient(180deg, #f0fdfa 0%, #ccfbf1 100%);
+}
+
+.card-panel {
+  @apply bg-white/90 backdrop-blur border border-teal-200 rounded-2xl shadow-lg;
+}
+
+.section-title {
+  @apply text-xl font-semibold text-black;
+}
+
+.muted {
+  @apply text-gray-700;
+}
+
+.text-ink {
+  @apply text-black;
+}
+
+.bg-ink {
+  @apply bg-teal-600 hover:bg-teal-700;
+}
