@@ -8,6 +8,7 @@ const Mark = require("../models/Mark");
 const Attendance = require("../models/Attendance");
 const Stability = require("../models/Stability");
 const { updateStabilityForStudent } = require("../services/stabilityService");
+const { isStrongPassword } = require("../utils/passwordPolicy");
 
 const connect = async () => {
   await mongoose.connect(process.env.MONGO_URI);
@@ -25,23 +26,24 @@ const seed = async () => {
     Stability.deleteMany({})
   ]);
 
-  const admin = await User.create({
-    name: "Admin User",
-    email: "admin@example.com",
-    password: "Admin@123",
-    role: "Admin"
-  });
+  const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin@2026#Strong";
+  const seedFacultyPassword = process.env.SEED_FACULTY_PASSWORD || "Faculty@2026#Strong";
+  const seedStudentPassword = process.env.SEED_STUDENT_PASSWORD || "Student@2026#Strong";
 
-  const faculty = await User.create({
-    name: "Faculty User",
-    email: "faculty@example.com",
-    password: "Faculty@123",
-    role: "Faculty"
-  });
+  if (![seedAdminPassword, seedFacultyPassword, seedStudentPassword].every(isStrongPassword)) {
+    throw new Error("Seed passwords must satisfy strong password policy.");
+  }
+
+  const admin = await User.create({ name: "Admin", email: "admin@gmail.com", password: seedAdminPassword, role: "Admin" });
+  const faculty = await User.create({ name: "Mathi", email: "mathi@gmail.com", password: seedFacultyPassword, role: "Faculty" });
+  const studentUser = await User.create({ name: "Abi", email: "abi@gmail.com", password: seedStudentPassword, role: "Student" });
+
+  const demoFacultyId = faculty._id;
 
   const s1 = await Student.create({
     studentId: "CSE2026-001",
-    name: "Karthik R",
+    name: "Abi",
+    email: "abi@gmail.com",
     department: "CSE",
     year: 3
   });
@@ -55,12 +57,12 @@ const seed = async () => {
   const sub1 = await Subject.create({
     subjectId: "CS301",
     subjectName: "Data Structures",
-    facultyId: faculty._id
+    facultyId: demoFacultyId
   });
   const sub2 = await Subject.create({
     subjectId: "CS302",
     subjectName: "Operating Systems",
-    facultyId: faculty._id
+    facultyId: demoFacultyId
   });
 
   await Mark.insertMany([
@@ -84,9 +86,10 @@ const seed = async () => {
   await updateStabilityForStudent(s1._id);
   await updateStabilityForStudent(s2._id);
 
-  console.log("Seed complete:");
-  console.log(`Admin: ${admin.email} / Admin@123`);
-  console.log(`Faculty: ${faculty.email} / Faculty@123`);
+  console.log("Seed complete with default users:");
+  console.log(`Admin: admin@gmail.com / ${seedAdminPassword}`);
+  console.log(`Faculty: mathi@gmail.com / ${seedFacultyPassword}`);
+  console.log(`Student: abi@gmail.com / ${seedStudentPassword}`);
 
   await mongoose.disconnect();
   process.exit(0);

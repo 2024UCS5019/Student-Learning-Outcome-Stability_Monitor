@@ -1,6 +1,24 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const asyncHandler = require("../utils/asyncHandler");
+const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../utils/passwordPolicy");
+
+const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const normalizeUsername = (value = "") => value.trim();
+const toEmailSlug = (value = "") => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const buildUniqueInternalEmail = async (username) => {
+  const baseSlug = toEmailSlug(username) || "user";
+  let candidate = `${baseSlug}@local.som`;
+  let suffix = 1;
+
+  while (await User.findOne({ email: candidate })) {
+    candidate = `${baseSlug}${suffix}@local.som`;
+    suffix += 1;
+  }
+
+  return candidate;
+};
 
 const generateToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -8,26 +26,59 @@ const generateToken = (id) =>
   });
 
 exports.register = asyncHandler(async (req, res) => {
-  const { name, email, password, role } = req.body;
-  const exists = await User.findOne({ email });
+  const username = normalizeUsername(String(req.body.username || ""));
+  const { password } = req.body;
+  const requestedRole = String(req.body.role || "");
+
+  if (!username || !password || !requestedRole) {
+    return res.status(400).json({ message: "Username, password and role are required" });
+  }
+
+  if (!["Student", "Faculty"].includes(requestedRole)) {
+    return res.status(400).json({ message: "Only Student and Faculty roles can be created" });
+  }
+
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+  }
+
+  const exists = await User.findOne({ name: new RegExp(`^${escapeRegex(username)}$`, "i") });
   if (exists) return res.status(400).json({ message: "User already exists" });
 
-  const user = await User.create({ name, email, password, role });
+  const email = await buildUniqueInternalEmail(username);
+  const user = await User.create({ name: username, email, password, role: requestedRole });
+
   res.status(201).json({
     id: user._id,
     name: user.name,
-    email: user.email,
-    role: user.role,
-    token: generateToken(user._id)
+    role: user.role
   });
 });
 
 exports.login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
+  const usernameOrEmail = String(req.body.username || req.body.email || "").trim();
+  const { password } = req.body;
+
+  if (!usernameOrEmail || !password) {
+    return res.status(400).json({ message: "Username and password are required" });
+  }
+
+  const normalizedEmail = usernameOrEmail.toLowerCase();
+  const user = await User.findOne({
+    $or: [
+      { email: normalizedEmail },
+      { name: new RegExp(`^${escapeRegex(usernameOrEmail)}$`, "i") }
+    ]
+  });
+
+  if (user?.role === "Student" && user.isBlocked) {
+    return res.status(403).json({ message: "Your account is blocked" });
+  }
+
   if (!user || !(await user.matchPassword(password))) {
     return res.status(401).json({ message: "Invalid credentials" });
   }
+
   res.json({
     id: user._id,
     name: user.name,
@@ -59,9 +110,9 @@ exports.googleCallback = asyncHandler(async (req, res) => {
     headers: { Authorization: `Bearer ${data.access_token}` }
   });
   
-  let user = await User.findOne({ email: profile.email });
+  const user = await User.findOne({ email: String(profile.email || "").toLowerCase().trim() });
   if (!user) {
-    user = await User.create({ name: profile.name, email: profile.email, password: Math.random().toString(36), role: 'Faculty' });
+    return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent("Account not found. Contact Admin.")}`);
   }
   
   const token = generateToken(user._id);

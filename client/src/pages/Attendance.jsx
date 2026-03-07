@@ -3,16 +3,19 @@ import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
 import FormInput from "../components/FormInput";
 import RoleGate from "../components/RoleGate";
+import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5001";
 
 const Attendance = () => {
+  const { user } = useAuth();
   const [attendance, setAttendance] = useState([]);
   const [students, setStudents] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [filterSubject, setFilterSubject] = useState("");
   const [form, setForm] = useState({
     studentId: "",
     subjectId: "",
@@ -20,17 +23,36 @@ const Attendance = () => {
   });
 
   const load = async () => {
-    const { data } = await api.get("/attendance");
-    setAttendance(data);
+    try {
+      const { data } = await api.get("/attendance");
+      setAttendance(data);
+      setError("");
+    } catch (err) {
+      setAttendance([]);
+      setError(err?.response?.data?.message || "Unable to load attendance");
+    }
   };
 
   const loadOptions = async () => {
-    const [studentsRes, subjectsRes] = await Promise.all([
-      api.get("/students"),
-      api.get("/subjects")
-    ]);
-    setStudents(studentsRes.data);
-    setSubjects(subjectsRes.data);
+    try {
+      const requests = [api.get("/subjects")];
+      if (user?.role !== "Student") {
+        requests.unshift(api.get("/students"));
+      }
+
+      const responses = await Promise.all(requests);
+      const subjectsRes = responses[responses.length - 1];
+      const studentsRes = user?.role !== "Student" ? responses[0] : null;
+
+      setStudents(studentsRes?.data || []);
+      const filteredSubjects = user?.role === "Faculty"
+        ? subjectsRes.data.filter((s) => s.facultyId?._id === user.id)
+        : subjectsRes.data;
+      setSubjects(filteredSubjects);
+    } catch {
+      setStudents([]);
+      setSubjects([]);
+    }
   };
 
   useEffect(() => {
@@ -41,7 +63,7 @@ const Attendance = () => {
     socket.on("attendance:updated", load);
     socket.on("attendance:deleted", load);
     return () => socket.disconnect();
-  }, []);
+  }, [user?.role]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -73,6 +95,7 @@ const Attendance = () => {
   };
 
   const sortedAttendance = [...attendance]
+    .filter(a => !filterSubject || a.subjectId?._id === filterSubject)
     .sort((a, b) => (a.studentId?.name || "").localeCompare(b.studentId?.name || ""))
     .map((a) => a);
 
@@ -124,6 +147,16 @@ const Attendance = () => {
       </RoleGate>
 
       <div className="mt-6">
+        {error && (
+          <div className="card-panel p-4 mb-4 text-sm text-rose-600">{error}</div>
+        )}
+        <div className="card-panel p-4 mb-4">
+          <label className="block text-sm font-medium mb-1">Filter by Subject</label>
+          <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+            <option value="">All Subjects</option>
+            {subjects.map(s => <option key={s._id} value={s._id}>{s.subjectName}</option>)}
+          </select>
+        </div>
         <RoleGate roles={["Admin", "Faculty"]}>
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm text-slate-600">
@@ -189,6 +222,13 @@ const Attendance = () => {
                   </RoleGate>
                 </tr>
               ))}
+              {sortedAttendance.length === 0 && (
+                <tr>
+                  <td className="px-6 py-6 text-sm text-slate-600" colSpan={user?.role === "Student" ? 3 : 5}>
+                    No attendance records found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

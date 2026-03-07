@@ -1,4 +1,5 @@
 const Mark = require("../models/Mark");
+const Student = require("../models/Student");
 const asyncHandler = require("../utils/asyncHandler");
 const { updateStabilityForStudent } = require("../services/stabilityService");
 
@@ -18,7 +19,16 @@ exports.createMark = asyncHandler(async (req, res) => {
 exports.getMarks = asyncHandler(async (req, res) => {
   const { studentId, subjectId } = req.query;
   const query = {};
-  if (studentId) query.studentId = studentId;
+  if (req.user?.role === "Student") {
+    let student = await Student.findOne({ email: req.user.email?.toLowerCase() });
+    if (!student && req.user?.name) {
+      student = await Student.findOne({ name: new RegExp(`^${req.user.name}$`, "i") });
+    }
+    if (!student) return res.json([]);
+    query.studentId = student._id;
+  } else if (studentId) {
+    query.studentId = studentId;
+  }
   if (subjectId) query.subjectId = subjectId;
 
   const marks = await Mark.find(query).populate("studentId subjectId");

@@ -1,21 +1,33 @@
-import React, { createContext, useEffect, useState } from "react";
+import React, { createContext, useState } from "react";
 import api from "../services/api";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const storedUserRaw = localStorage.getItem("user");
+      if (!storedUserRaw) return null;
 
-  const loadUser = () => {
-    const storedUser = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
-    if (storedUser && token) setUser(JSON.parse(storedUser));
-  };
+      const parsedUser = JSON.parse(storedUserRaw);
+      const token = localStorage.getItem("token");
+      const fallbackToken = parsedUser?.token;
 
-  useEffect(() => loadUser(), []);
+      if (!token && fallbackToken) {
+        localStorage.setItem("token", fallbackToken);
+      }
 
-  const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
+      if (!token && !fallbackToken) return null;
+      return parsedUser;
+    } catch {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      return null;
+    }
+  });
+
+  const login = async (username, password) => {
+    const { data } = await api.post("/auth/login", { username, password });
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data));
     setUser(data);
@@ -23,9 +35,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (payload) => {
     const { data } = await api.post("/auth/register", payload);
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data));
-    setUser(data);
+    return data;
   };
 
   const logout = () => {

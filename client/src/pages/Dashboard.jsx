@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
 import StatCard from "../components/StatCard";
 import ChartCard from "../components/ChartCard";
 import StatusPill from "../components/StatusPill";
+import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import { avg, formatPercent } from "../utils/format";
 import {
@@ -11,15 +13,25 @@ import {
   BarChart, Bar, PieChart, Pie, Cell
 } from "recharts";
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5001";
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [marks, setMarks] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [stability, setStability] = useState([]);
 
+  useEffect(() => {
+    // Student users should always open their personal dashboard view.
+    if (user?.role === "Student") {
+      navigate("/my-dashboard", { replace: true });
+    }
+  }, [user, navigate]);
+
   const load = async () => {
+    if (user?.role === "Student") return;
     const [s, m, a, st] = await Promise.all([
       api.get("/students"),
       api.get("/marks"),
@@ -33,6 +45,7 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    if (user?.role === "Student") return;
     load();
     const socket = io(socketUrl, { transports: ["websocket"] });
     const refresh = () => load();
@@ -44,12 +57,20 @@ const Dashboard = () => {
     socket.on("attendance:deleted", refresh);
     socket.on("stability:updated", refresh);
     return () => socket.disconnect();
-  }, []);
+  }, [user?.role]);
 
   const lineData = useMemo(() => {
-    return marks.map((m, idx) => ({
-      label: m.testName || `Test ${idx + 1}`,
-      score: m.marks
+    const studentMap = {};
+    marks.forEach((m) => {
+      const studentName = m.studentId?.name || "Unknown";
+      if (!studentMap[studentName]) {
+        studentMap[studentName] = [];
+      }
+      studentMap[studentName].push(m.marks);
+    });
+    return Object.entries(studentMap).map(([label, scores]) => ({
+      label,
+      score: Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1))
     }));
   }, [marks]);
 
@@ -93,7 +114,7 @@ const Dashboard = () => {
         <ChartCard title="Performance Over Time">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={lineData}>
-              <XAxis dataKey="label" />
+              <XAxis dataKey="label" hide />
               <YAxis />
               <Tooltip />
               <Line type="monotone" dataKey="score" stroke="#0ea5e9" strokeWidth={3} />
@@ -107,7 +128,7 @@ const Dashboard = () => {
               <XAxis dataKey="name" hide />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="avg" fill="#22c55e" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="avg" fill="#22c55e" radius={[6, 6, 0, 0]} barSize={30} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -116,9 +137,10 @@ const Dashboard = () => {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={90} label>
-                {pieData.map((_, idx) => (
-                  <Cell key={idx} fill={idx % 2 ? "#f97316" : "#0ea5e9"} />
-                ))}
+                {pieData.map((_, idx) => {
+                  const colors = ["#0ea5e9", "#22c55e", "#f97316"];
+                  return <Cell key={idx} fill={colors[idx % colors.length]} />;
+                })}
               </Pie>
               <Tooltip />
             </PieChart>
@@ -127,17 +149,28 @@ const Dashboard = () => {
       </div>
 
       <div className="card-panel p-6 mt-8">
-        <h3 className="section-title mb-4">Stability Status</h3>
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {stability.map((s) => (
-            <div key={s._id} className="border border-slate-200 rounded-xl p-4">
-              <p className="text-sm text-slate-600">{s.studentId?.name || "Student"}</p>
-              <p className="text-lg font-semibold text-slate-900 mt-1">{s.average}</p>
-              <div className="mt-2">
-                <StatusPill status={s.status} />
-              </div>
-            </div>
-          ))}
+        <h3 className="section-title mb-4">Student Performance Overview</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Student ID</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Student</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Average Score</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stability.map((s) => (
+                <tr key={s._id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="py-3 px-4 text-sm text-slate-600">{s.studentId?.studentId || "N/A"}</td>
+                  <td className="py-3 px-4 text-sm text-slate-900">{s.studentId?.name || "Student"}</td>
+                  <td className="py-3 px-4 text-lg font-semibold text-slate-900">{s.average}</td>
+                  <td className="py-3 px-4"><StatusPill status={s.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </AppLayout>
