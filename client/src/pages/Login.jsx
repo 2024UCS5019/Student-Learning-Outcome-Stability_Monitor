@@ -150,10 +150,11 @@ const Login = () => {
         <div className="mt-3">
           <button
             type="button"
+            onClick={() => window.location.href = "http://localhost:5001/api/auth/google"}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
           >
             <span className="text-base text-rose-400">G</span>
-            Google
+            Continue with Google
           </button>
         </div>
       </div>

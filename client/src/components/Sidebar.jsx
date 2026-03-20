@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
+import BrandLogo from "./BrandLogo";
 
 const links = [
   { to: "/dashboard", label: "Dashboard" },
@@ -47,8 +48,13 @@ const Sidebar = () => {
   return (
     <aside className="hidden lg:flex lg:flex-col w-72 p-4 min-h-screen">
       <div className="card-panel p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl">
-        <h1 className="font-display text-2xl font-bold text-ink">Outcome Monitor</h1>
-        <p className="muted text-sm mt-1">Stability Intelligence</p>
+        <div className="flex items-center gap-3">
+          <BrandLogo size={42} />
+          <div>
+            <h1 className="font-display text-2xl font-bold text-ink leading-tight">Outcome Monitor</h1>
+            <p className="muted text-sm mt-1">Stability Intelligence</p>
+          </div>
+        </div>
       </div>
 
       <nav className="mt-6 flex flex-col gap-2">
@@ -58,7 +64,7 @@ const Sidebar = () => {
       <div className="mt-5">
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:shadow-lg">
           <p className="text-slate-500 text-sm">Signed in as</p>
-          <p className="mt-1 text-ink text-base font-semibold leading-tight break-words">{displayName}</p>
+          <p className="mt-1 text-ink text-base font-semibold leading-tight break-all truncate" title={displayName}>{displayName}</p>
           <p className="mt-1 text-slate-500 text-sm tracking-wide uppercase">{displayRole}</p>
         </div>
       </div>

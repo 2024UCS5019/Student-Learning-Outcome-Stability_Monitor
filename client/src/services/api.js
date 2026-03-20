@@ -1,4 +1,5 @@
 import axios from "axios";
+import { emitToast } from "../utils/toast";
 
 const fallbackBaseURL = () => `http://${window.location.hostname}:5001/api`;
 
@@ -35,6 +36,18 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      if ((cfg.method || "get").toLowerCase() !== "get") {
+        emitToast({
+          type: "error",
+          title: "You're offline",
+          message: "Reconnect to the internet and try again.",
+          key: "offline"
+        });
+      }
+      return Promise.reject(error);
+    }
+
     try {
       const current = new URL(cfg.baseURL || api.defaults.baseURL || fallbackBaseURL());
       const altHost = current.hostname === "localhost" ? "127.0.0.1" : "localhost";
@@ -53,6 +66,17 @@ api.interceptors.response.use(
   (error) => {
     const status = error?.response?.status;
     const url = error?.config?.url || "";
+    const method = (error?.config?.method || "get").toLowerCase();
+
+    if (!error?.response && method !== "get") {
+      emitToast({
+        type: "error",
+        title: "Network error",
+        message: "Cannot reach the server (port 5001). Make sure the backend is running.",
+        key: "network_error"
+      });
+    }
+
     if (status === 401 && !url.includes("/auth/login") && !url.includes("/auth/register")) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");

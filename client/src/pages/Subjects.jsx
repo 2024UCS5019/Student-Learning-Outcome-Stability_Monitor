@@ -1,26 +1,36 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
 import FormInput from "../components/FormInput";
 import RoleGate from "../components/RoleGate";
 import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
+import useDebouncedValue from "../hooks/useDebouncedValue";
 import api from "../services/api";
+import { emitToast } from "../utils/toast";
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5001";
+const defaultSocketUrl = () => {
+  if (typeof window === "undefined") return "http://localhost:5001";
+  const protocol = window.location.protocol === "https:" ? "https" : "http";
+  return `${protocol}://${window.location.hostname}:5001`;
+};
+
+const socketUrl = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl();
 
 const Subjects = () => {
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [error, setError] = useState("");
+  const [pageError, setPageError] = useState("");
+  const [formError, setFormError] = useState("");
   const [editingId, setEditingId] = useState("");
   const [showFacultyPassword, setShowFacultyPassword] = useState(false);
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
   const [totalSubjects, setTotalSubjects] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [form, setForm] = useState({
     subjectId: "",
     subjectName: "",
@@ -31,24 +41,40 @@ const Subjects = () => {
   });
 
   const pageSize = 10;
-  const load = async () => {
-    const { data } = await api.get("/subjects", {
-      params: {
-        page,
-        limit: pageSize,
-        search: search.trim() || undefined
-      }
-    });
-    if (Array.isArray(data)) {
-      setSubjects(data);
-      setTotalSubjects(data.length);
+  const load = useCallback(async () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setSubjects([]);
+      setTotalSubjects(0);
       setTotalPages(1);
-    } else {
-      setSubjects(data.items || []);
-      setTotalSubjects(data.total || 0);
-      setTotalPages(data.totalPages || 1);
+      setPageError("You appear to be offline. Turn off Offline mode in DevTools or reconnect, then refresh.");
+      return;
     }
-  };
+
+    try {
+      const { data } = await api.get("/subjects", {
+        params: {
+          page,
+          limit: pageSize,
+          search: debouncedSearch.trim() || undefined
+        }
+      });
+      if (Array.isArray(data)) {
+        setSubjects(data);
+        setTotalSubjects(data.length);
+        setTotalPages(1);
+      } else {
+        setSubjects(data.items || []);
+        setTotalSubjects(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      }
+      setPageError("");
+    } catch (err) {
+      setSubjects([]);
+      setTotalSubjects(0);
+      setTotalPages(1);
+      setPageError(err?.response?.data?.message || "Unable to load subjects. Ensure the backend is running on port 5001.");
+    }
+  }, [page, debouncedSearch]);
 
   const resetForm = () => {
     setForm({
@@ -65,17 +91,49 @@ const Subjects = () => {
 
   useEffect(() => {
     load();
-    const socket = io(socketUrl);
-    socket.on("subjects:updated", load);
-    return () => socket.disconnect();
-  }, [user?.role, page, search]);
+  }, [user?.role, load]);
+
+  const loadRef = useRef(load);
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const socket = io(socketUrl, {
+      autoConnect: typeof navigator === "undefined" || navigator.onLine !== false
+    });
+
+    const onUpdated = () => loadRef.current();
+    socket.on("subjects:updated", onUpdated);
+
+    const onOnline = () => {
+      if (socket.disconnected) socket.connect();
+      loadRef.current();
+    };
+
+    const onOffline = () => {
+      socket.disconnect();
+    };
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      socket.off("subjects:updated", onUpdated);
+      socket.disconnect();
+    };
+  }, []);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
   const addOrUpdateSubject = async (e) => {
     e.preventDefault();
-    setError("");
+    setFormError("");
     try {
       const payload = {
         subjectId: form.subjectId,
@@ -90,19 +148,21 @@ const Subjects = () => {
 
       if (editingId) {
         await api.put(`/subjects/${editingId}`, payload);
+        emitToast({ type: "success", title: "Updated", message: "Subject updated successfully." });
       } else {
         await api.post("/subjects", payload);
+        emitToast({ type: "success", title: "Added", message: "Subject added successfully." });
       }
 
       resetForm();
       load();
     } catch (err) {
-      setError(err?.response?.data?.message || (editingId ? "Failed to update subject" : "Failed to add subject"));
+      setFormError(err?.response?.data?.message || (editingId ? "Failed to update subject" : "Failed to add subject"));
     }
   };
 
   const startEdit = (subject) => {
-    setError("");
+    setFormError("");
     setEditingId(subject._id);
     setForm({
       subjectId: subject.subjectId || "",
@@ -117,28 +177,38 @@ const Subjects = () => {
 
   const deleteSubject = async (id) => {
     if (!window.confirm("Delete this subject? This action cannot be undone.")) return;
-    await api.delete(`/subjects/${id}`);
-    if (editingId === id) {
-      resetForm();
+    try {
+      await api.delete(`/subjects/${id}`);
+      emitToast({ type: "success", title: "Deleted", message: "Subject deleted." });
+      if (editingId === id) {
+        resetForm();
+      }
+      load();
+    } catch (err) {
+      setPageError(err?.response?.data?.message || "Failed to delete subject");
     }
-    load();
   };
 
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return;
     if (!window.confirm(`Delete ${selectedIds.size} subject(s)? This action cannot be undone.`)) return;
-    await Promise.all([...selectedIds].map((id) => api.delete(`/subjects/${id}`)));
-    setSelectedIds(new Set());
-    if (editingId && selectedIds.has(editingId)) {
-      resetForm();
+    try {
+      await Promise.all([...selectedIds].map((id) => api.delete(`/subjects/${id}`)));
+      emitToast({ type: "success", title: "Deleted", message: "Selected subjects deleted." });
+      setSelectedIds(new Set());
+      if (editingId && selectedIds.has(editingId)) {
+        resetForm();
+      }
+      load();
+    } catch (err) {
+      setPageError(err?.response?.data?.message || "Failed to delete selected subjects");
     }
-    load();
   };
 
   useEffect(() => {
     setPage(1);
     setShowAll(false);
-  }, [search, subjects.length]);
+  }, [search]);
 
   const safePage = Math.min(page, totalPages);
   const displaySubjects = showAll ? subjects : subjects.slice(0, 5);
@@ -172,7 +242,7 @@ const Subjects = () => {
     <AppLayout title="Subjects">
       <RoleGate roles={["Admin", "Faculty"]}>
         <form className="card-panel p-6 grid md:grid-cols-3 gap-4" onSubmit={addOrUpdateSubject}>
-          {error && <p className="md:col-span-3 text-rose-600 text-sm">{error}</p>}
+          {formError && <p className="md:col-span-3 text-rose-600 text-sm">{formError}</p>}
           <FormInput label="Faculty Subject ID" name="subjectId" value={form.subjectId} onChange={handleChange} required />
           <FormInput label="Faculty Subject Name" name="subjectName" value={form.subjectName} onChange={handleChange} required />
           <FormInput label="Faculty ID" name="facultyCode" value={form.facultyCode} onChange={handleChange} />
@@ -231,6 +301,11 @@ const Subjects = () => {
       </RoleGate>
 
       <div className="mt-6">
+        {pageError && (
+          <div className="card-panel p-4 mb-4 border border-rose-200 bg-rose-50">
+            <p className="text-sm text-rose-700">{pageError}</p>
+          </div>
+        )}
         <div className="card-panel p-4 mb-4">
           <FormInput
             label="Search Subjects"

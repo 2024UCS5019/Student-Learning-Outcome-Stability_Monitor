@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
@@ -7,9 +7,17 @@ import Table from "../components/Table";
 import RoleGate from "../components/RoleGate";
 import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
+import useDebouncedValue from "../hooks/useDebouncedValue";
 import api from "../services/api";
+import { emitToast } from "../utils/toast";
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5001";
+const defaultSocketUrl = () => {
+  if (typeof window === "undefined") return "http://localhost:5001";
+  const protocol = window.location.protocol === "https:" ? "https" : "http";
+  return `${protocol}://${window.location.hostname}:5001`;
+};
+
+const socketUrl = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl();
 
 const Students = () => {
   const navigate = useNavigate();
@@ -26,6 +34,7 @@ const Students = () => {
   const [showAll, setShowAll] = useState(false);
   const [totalStudents, setTotalStudents] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [form, setForm] = useState({
     studentId: "",
     name: "",
@@ -43,11 +52,19 @@ const Students = () => {
   const pageSize = 10;
   const load = async () => {
     try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setStudents([]);
+        setTotalStudents(0);
+        setTotalPages(1);
+        setPageError("You appear to be offline. Turn off Offline mode in DevTools or reconnect, then refresh.");
+        return;
+      }
+
       const { data } = await api.get("/students", {
         params: {
           page,
           limit: pageSize,
-          search: search.trim() || undefined,
+          search: debouncedSearch.trim() || undefined,
           sort: sortMode
         }
       });
@@ -69,6 +86,11 @@ const Students = () => {
     }
   };
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const canManageRef = useRef(canManageStudents);
+  canManageRef.current = canManageStudents;
+
   useEffect(() => {
     if (canManageStudents) {
       load();
@@ -76,12 +98,37 @@ const Students = () => {
       setStudents([]);
       setPageError("Only Admin or Faculty can add and manage student details.");
     }
-    const socket = io(socketUrl);
-    socket.on("students:updated", () => {
-      if (canManageStudents) load();
+  }, [canManageStudents, page, sortMode, debouncedSearch]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const socket = io(socketUrl, {
+      autoConnect: typeof navigator === "undefined" || navigator.onLine !== false
     });
-    return () => socket.disconnect();
-  }, [canManageStudents, page, sortMode, search]);
+
+    const onUpdated = () => {
+      if (canManageRef.current) loadRef.current();
+    };
+
+    const onOnline = () => {
+      if (socket.disconnected) socket.connect();
+      if (canManageRef.current) loadRef.current();
+    };
+
+    const onOffline = () => socket.disconnect();
+
+    socket.on("students:updated", onUpdated);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      socket.off("students:updated", onUpdated);
+      socket.disconnect();
+    };
+  }, []);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -99,8 +146,10 @@ const Students = () => {
       const payload = { ...form, year: Number(form.year) };
       if (editingId) {
         await api.put(`/students/${editingId}`, payload);
+        emitToast({ type: "success", title: "Updated", message: "Student updated successfully." });
       } else {
         await api.post("/students", payload);
+        emitToast({ type: "success", title: "Added", message: "Student added successfully." });
       }
       resetForm();
       load();
@@ -127,6 +176,7 @@ const Students = () => {
     if (!window.confirm("Delete this student? This action cannot be undone.")) return;
     try {
       await api.delete(`/students/${id}`);
+      emitToast({ type: "success", title: "Deleted", message: "Student deleted." });
       load();
     } catch (err) {
       setPageError(err?.response?.data?.message || "Failed to delete student");
@@ -138,6 +188,7 @@ const Students = () => {
     if (!window.confirm(`Delete ${selectedIds.size} student(s)? This action cannot be undone.`)) return;
     try {
       await Promise.all([...selectedIds].map((id) => api.delete(`/students/${id}`)));
+      emitToast({ type: "success", title: "Deleted", message: "Selected students deleted." });
       setSelectedIds(new Set());
       load();
     } catch (err) {
@@ -149,8 +200,10 @@ const Students = () => {
     try {
       if (student.isBlocked) {
         await api.patch(`/students/${student._id}/unblock`);
+        emitToast({ type: "success", title: "Unblocked", message: "Student account unblocked." });
       } else {
         await api.patch(`/students/${student._id}/block`);
+        emitToast({ type: "success", title: "Blocked", message: "Student account blocked." });
       }
       load();
     } catch (err) {

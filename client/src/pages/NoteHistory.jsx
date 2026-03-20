@@ -42,7 +42,7 @@ const NoteHistory = () => {
   const pageSize = 10;
   const load = async () => {
     try {
-      const { data } = await api.get("/notes", {
+      const { data } = await api.get("/note-history", {
         params: {
           targetType: filterType || undefined,
           page,
@@ -69,7 +69,7 @@ const NoteHistory = () => {
 
   const loadTargets = async () => {
     try {
-      const { data } = await api.get("/notes/targets");
+      const { data } = await api.get("/note-history/targets");
       setStudents(data.students || []);
       setStaff(data.staff || []);
     } catch {
@@ -130,9 +130,9 @@ const NoteHistory = () => {
     setError("");
     try {
       if (editingId) {
-        await api.put(`/notes/${editingId}`, form);
+        await api.put(`/note-history/${editingId}`, form);
       } else {
-        await api.post("/notes", form);
+        await api.post("/note-history", form);
       }
       setForm((prev) => ({
         ...prev,
@@ -172,8 +172,7 @@ const NoteHistory = () => {
 
   const deleteNote = async (id) => {
     if (!window.confirm("Delete this note? This action cannot be undone.")) return;
-    await api.delete(`/notes/${id}`);
-    load();
+    await api.delete(`/note-history/${id}`);
   };
 
   return (

@@ -1,13 +1,17 @@
 import useAuth from "../hooks/useAuth";
+import BrandLogo from "./BrandLogo";
 
 const Topbar = ({ title }) => {
   const { user, logout } = useAuth();
 
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h2 className="font-display text-3xl font-bold text-ink">{title}</h2>
-        <p className="muted text-sm">Monitoring student learning stability</p>
+      <div className="flex items-start gap-3">
+        <BrandLogo size={40} className="mt-1 hidden sm:inline-flex" />
+        <div>
+          <h2 className="font-display text-3xl font-bold text-ink">{title}</h2>
+          <p className="muted text-sm">Monitoring student learning stability</p>
+        </div>
       </div>
       <div className="card-panel px-4 py-3 flex items-center gap-3">
         <div>

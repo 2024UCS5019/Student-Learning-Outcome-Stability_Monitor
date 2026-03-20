@@ -61,6 +61,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/stability", stabilityRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/notes", noteHistoryRoutes);
+app.use("/api/note-history", noteHistoryRoutes);
 
 app.use(errorHandler);
 

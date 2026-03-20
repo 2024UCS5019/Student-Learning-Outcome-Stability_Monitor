@@ -12,6 +12,7 @@ import Marks from "./pages/Marks";
 import Attendance from "./pages/Attendance";
 import Reports from "./pages/Reports";
 import NoteHistory from "./pages/NoteHistory";
+import NotesHistory from "./pages/NotesHistory";
 import NotFound from "./pages/NotFound";
 
 const AppLoader = () => (
@@ -126,7 +127,7 @@ const App = () => {
         path="/notes-history"
         element={
           <ProtectedRoute>
-            <NoteHistory />
+            <NotesHistory />
           </ProtectedRoute>
         }
       />

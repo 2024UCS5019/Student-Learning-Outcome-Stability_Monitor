@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
+import { emitToast } from "../utils/toast";
 
 const MAX_NOTES_LENGTH = 1000;
 
@@ -33,30 +34,32 @@ const QuickNotesWidget = ({ user }) => {
   const saveNotes = async () => {
     if (!notes.trim()) return;
 
-    try {
-      const { data: targets } = await api.get("/note-history/targets");
-      
-      if (targets.staff && targets.staff.length > 0) {
-        const targetId = user?.id || targets.staff[0]?._id;
-        const targetType = "Staff";
-
+    if (user?.role === "Admin" || user?.role === "Faculty") {
+      try {
         await api.post("/note-history", {
-          targetType,
-          targetId,
+          targetType: "Staff",
+          targetId: user?.id,
           note: notes,
           status: "Average"
         });
+      } catch (error) {
+        console.error("Failed to save note to history:", error);
       }
-    } catch (error) {
-      console.error("Failed to save note to history:", error);
     }
 
-    const snapshot = {
-      notes,
-      savedAt: new Date().toLocaleString()
-    };
+    const savedAt = new Date().toLocaleString();
+    const snapshot = { notes, savedAt };
     localStorage.setItem(storageKey, JSON.stringify(snapshot));
-    setSavedAt(snapshot.savedAt);
+
+    const historyKey = `${storageKey}_history`;
+    const existing = JSON.parse(localStorage.getItem(historyKey) || "[]");
+    existing.unshift({ note: notes, savedAt });
+    localStorage.setItem(historyKey, JSON.stringify(existing));
+
+    setSavedAt(savedAt);
+    window.dispatchEvent(new Event("quicknotes:saved"));
+    emitToast({ type: "success", title: "Saved", message: "Quick note saved to history." });
+    setOpen(false);
   };
 
   const clearNotes = () => {

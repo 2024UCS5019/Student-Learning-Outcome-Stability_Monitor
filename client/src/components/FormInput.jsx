@@ -3,7 +3,7 @@ const FormInput = ({ label, ...props }) => (
     <span className="text-slate-700">{label}</span>
     <input
       {...props}
-      className="px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-400"
+      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white/80 backdrop-blur focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300"
     />
   </label>
 );

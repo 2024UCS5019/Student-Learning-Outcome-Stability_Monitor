@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
 import FormInput from "../components/FormInput";
@@ -6,8 +6,15 @@ import RoleGate from "../components/RoleGate";
 import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
+import { emitToast } from "../utils/toast";
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5001";
+const defaultSocketUrl = () => {
+  if (typeof window === "undefined") return "http://localhost:5001";
+  const protocol = window.location.protocol === "https:" ? "https" : "http";
+  return `${protocol}://${window.location.hostname}:5001`;
+};
+
+const socketUrl = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl();
 
 const Marks = () => {
   const { user } = useAuth();
@@ -32,6 +39,14 @@ const Marks = () => {
   const pageSize = 10;
   const load = async () => {
     try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setMarks([]);
+        setTotalMarksCount(0);
+        setTotalPages(1);
+        setError("You appear to be offline. Turn off Offline mode in DevTools or reconnect, then refresh.");
+        return;
+      }
+
       const { data } = await api.get("/marks", {
         params: {
           page,
@@ -59,6 +74,10 @@ const Marks = () => {
 
   const loadStudents = async () => {
     try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setStudents([]);
+        return;
+      }
       const { data } = await api.get("/students");
       setStudents(data);
     } catch {
@@ -68,6 +87,10 @@ const Marks = () => {
 
   const loadSubjects = async () => {
     try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setSubjects([]);
+        return;
+      }
       const { data } = await api.get("/subjects");
       const filteredSubjects = user?.role === "Faculty"
         ? data.filter((s) => s.facultyId?._id === user.id)
@@ -78,18 +101,48 @@ const Marks = () => {
     }
   };
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   useEffect(() => {
     load();
     if (user?.role !== "Student") {
       loadStudents();
     }
     loadSubjects();
-    const socket = io(socketUrl);
-    socket.on("marks:created", load);
-    socket.on("marks:updated", load);
-    socket.on("marks:deleted", load);
-    return () => socket.disconnect();
   }, [user?.role, page, filterSubject]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const socket = io(socketUrl, {
+      autoConnect: typeof navigator === "undefined" || navigator.onLine !== false
+    });
+
+    const onUpdated = () => loadRef.current();
+
+    const onOnline = () => {
+      if (socket.disconnected) socket.connect();
+      loadRef.current();
+    };
+
+    const onOffline = () => socket.disconnect();
+
+    socket.on("marks:created", onUpdated);
+    socket.on("marks:updated", onUpdated);
+    socket.on("marks:deleted", onUpdated);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      socket.off("marks:created", onUpdated);
+      socket.off("marks:updated", onUpdated);
+      socket.off("marks:deleted", onUpdated);
+      socket.disconnect();
+    };
+  }, []);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -105,8 +158,10 @@ const Marks = () => {
       const payload = { ...form, marks: Number(form.marks) };
       if (editingId) {
         await api.put(`/marks/${editingId}`, payload);
+        emitToast({ type: "success", title: "Updated", message: "Marks updated successfully." });
       } else {
         await api.post("/marks", payload);
+        emitToast({ type: "success", title: "Added", message: "Marks added successfully." });
       }
       resetForm();
       load();
@@ -129,16 +184,26 @@ const Marks = () => {
 
   const deleteMark = async (id) => {
     if (!window.confirm("Delete this mark entry? This action cannot be undone.")) return;
-    await api.delete(`/marks/${id}`);
-    load();
+    try {
+      await api.delete(`/marks/${id}`);
+      emitToast({ type: "success", title: "Deleted", message: "Mark entry deleted." });
+      load();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to delete mark entry");
+    }
   };
 
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return;
     if (!window.confirm(`Delete ${selectedIds.size} mark(s)? This action cannot be undone.`)) return;
-    await Promise.all([...selectedIds].map((id) => api.delete(`/marks/${id}`)));
-    setSelectedIds(new Set());
-    load();
+    try {
+      await Promise.all([...selectedIds].map((id) => api.delete(`/marks/${id}`)));
+      emitToast({ type: "success", title: "Deleted", message: "Selected marks deleted." });
+      setSelectedIds(new Set());
+      load();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to delete selected marks");
+    }
   };
 
   const sortedMarks = marks

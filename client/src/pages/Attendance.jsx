@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
 import FormInput from "../components/FormInput";
@@ -6,8 +6,15 @@ import RoleGate from "../components/RoleGate";
 import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
+import { emitToast } from "../utils/toast";
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5001";
+const defaultSocketUrl = () => {
+  if (typeof window === "undefined") return "http://localhost:5001";
+  const protocol = window.location.protocol === "https:" ? "https" : "http";
+  return `${protocol}://${window.location.hostname}:5001`;
+};
+
+const socketUrl = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl();
 
 const Attendance = () => {
   const { user } = useAuth();
@@ -31,6 +38,14 @@ const Attendance = () => {
   const pageSize = 10;
   const load = async () => {
     try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setAttendance([]);
+        setTotalRecordsCount(0);
+        setTotalPages(1);
+        setError("You appear to be offline. Turn off Offline mode in DevTools or reconnect, then refresh.");
+        return;
+      }
+
       const { data } = await api.get("/attendance", {
         params: {
           page,
@@ -58,6 +73,12 @@ const Attendance = () => {
 
   const loadOptions = async () => {
     try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setStudents([]);
+        setSubjects([]);
+        return;
+      }
+
       const requests = [api.get("/subjects")];
       if (user?.role !== "Student") {
         requests.unshift(api.get("/students"));
@@ -78,15 +99,45 @@ const Attendance = () => {
     }
   };
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   useEffect(() => {
     load();
     loadOptions();
-    const socket = io(socketUrl);
-    socket.on("attendance:created", load);
-    socket.on("attendance:updated", load);
-    socket.on("attendance:deleted", load);
-    return () => socket.disconnect();
   }, [user?.role, page, filterSubject]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const socket = io(socketUrl, {
+      autoConnect: typeof navigator === "undefined" || navigator.onLine !== false
+    });
+
+    const onUpdated = () => loadRef.current();
+
+    const onOnline = () => {
+      if (socket.disconnected) socket.connect();
+      loadRef.current();
+    };
+
+    const onOffline = () => socket.disconnect();
+
+    socket.on("attendance:created", onUpdated);
+    socket.on("attendance:updated", onUpdated);
+    socket.on("attendance:deleted", onUpdated);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      socket.off("attendance:created", onUpdated);
+      socket.off("attendance:updated", onUpdated);
+      socket.off("attendance:deleted", onUpdated);
+      socket.disconnect();
+    };
+  }, []);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -98,8 +149,10 @@ const Attendance = () => {
       const payload = { ...form, percentage: Number(form.percentage) };
       if (editingId) {
         await api.put(`/attendance/${editingId}`, payload);
+        emitToast({ type: "success", title: "Updated", message: "Attendance updated successfully." });
       } else {
         await api.post("/attendance", payload);
+        emitToast({ type: "success", title: "Added", message: "Attendance saved successfully." });
       }
       setEditingId(null);
       setForm({ studentId: "", subjectId: "", percentage: "" });
@@ -127,16 +180,26 @@ const Attendance = () => {
 
   const deleteAttendance = async (id) => {
     if (!window.confirm("Delete this attendance record? This action cannot be undone.")) return;
-    await api.delete(`/attendance/${id}`);
-    load();
+    try {
+      await api.delete(`/attendance/${id}`);
+      emitToast({ type: "success", title: "Deleted", message: "Attendance record deleted." });
+      load();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to delete attendance record");
+    }
   };
 
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return;
     if (!window.confirm(`Delete ${selectedIds.size} attendance record(s)? This action cannot be undone.`)) return;
-    await Promise.all([...selectedIds].map((id) => api.delete(`/attendance/${id}`)));
-    setSelectedIds(new Set());
-    load();
+    try {
+      await Promise.all([...selectedIds].map((id) => api.delete(`/attendance/${id}`)));
+      emitToast({ type: "success", title: "Deleted", message: "Selected attendance records deleted." });
+      setSelectedIds(new Set());
+      load();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to delete selected attendance records");
+    }
   };
 
   const sortedAttendance = [...attendance]

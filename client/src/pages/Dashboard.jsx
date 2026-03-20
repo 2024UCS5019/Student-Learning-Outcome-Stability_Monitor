@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
@@ -13,7 +13,13 @@ import {
   BarChart, Bar, PieChart, Pie, Cell
 } from "recharts";
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5001";
+const defaultSocketUrl = () => {
+  if (typeof window === "undefined") return "http://localhost:5001";
+  const protocol = window.location.protocol === "https:" ? "https" : "http";
+  return `${protocol}://${window.location.hostname}:5001`;
+};
+
+const socketUrl = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl();
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -22,6 +28,7 @@ const Dashboard = () => {
   const [marks, setMarks] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [stability, setStability] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     // Student users should always open their personal dashboard view.
@@ -32,23 +39,46 @@ const Dashboard = () => {
 
   const load = async () => {
     if (user?.role === "Student") return;
-    const [s, m, a, st] = await Promise.all([
-      api.get("/students"),
-      api.get("/marks"),
-      api.get("/attendance"),
-      api.get("/stability")
-    ]);
-    setStudents(s.data);
-    setMarks(m.data);
-    setAttendance(a.data);
-    setStability(st.data);
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setError("You appear to be offline. Turn off Offline mode in DevTools or reconnect, then refresh.");
+      return;
+    }
+
+    try {
+      const [s, m, a, st] = await Promise.all([
+        api.get("/students"),
+        api.get("/marks"),
+        api.get("/attendance"),
+        api.get("/stability")
+      ]);
+      setStudents(s.data);
+      setMarks(m.data);
+      setAttendance(a.data);
+      setStability(st.data);
+      setError("");
+    } catch (err) {
+      setError(err?.response?.data?.message || "Unable to load dashboard data. Ensure the backend is running on port 5001.");
+    }
   };
+
+  const loadRef = useRef(load);
+  loadRef.current = load;
 
   useEffect(() => {
     if (user?.role === "Student") return;
-    load();
-    const socket = io(socketUrl);
-    const refresh = () => load();
+    loadRef.current();
+
+    const socket = io(socketUrl, {
+      autoConnect: typeof navigator === "undefined" || navigator.onLine !== false
+    });
+
+    const refresh = () => loadRef.current();
+    const onOnline = () => {
+      if (socket.disconnected) socket.connect();
+      loadRef.current();
+    };
+    const onOffline = () => socket.disconnect();
+
     socket.on("marks:created", refresh);
     socket.on("marks:updated", refresh);
     socket.on("marks:deleted", refresh);
@@ -56,7 +86,26 @@ const Dashboard = () => {
     socket.on("attendance:updated", refresh);
     socket.on("attendance:deleted", refresh);
     socket.on("stability:updated", refresh);
-    return () => socket.disconnect();
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", onOnline);
+      window.addEventListener("offline", onOffline);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", onOnline);
+        window.removeEventListener("offline", onOffline);
+      }
+      socket.off("marks:created", refresh);
+      socket.off("marks:updated", refresh);
+      socket.off("marks:deleted", refresh);
+      socket.off("attendance:created", refresh);
+      socket.off("attendance:updated", refresh);
+      socket.off("attendance:deleted", refresh);
+      socket.off("stability:updated", refresh);
+      socket.disconnect();
+    };
   }, [user?.role]);
 
   const lineData = useMemo(() => {
@@ -104,6 +153,11 @@ const Dashboard = () => {
 
   return (
     <AppLayout title="Dashboard">
+      {error && (
+        <div className="card-panel p-4 mb-6 border border-rose-200 bg-rose-50">
+          <p className="text-sm text-rose-700">{error}</p>
+        </div>
+      )}
       <div className="grid md:grid-cols-3 gap-6">
         <StatCard title="Total Students" value={students.length} subtitle="Active records" />
         <StatCard title="Average Score" value={avgMarks.toFixed(1)} subtitle="Across all tests" />
