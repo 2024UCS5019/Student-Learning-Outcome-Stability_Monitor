@@ -12,6 +12,7 @@ const markRoutes = require("./routes/markRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const stabilityRoutes = require("./routes/stabilityRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const noteHistoryRoutes = require("./routes/noteHistoryRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -39,10 +40,7 @@ const allowedOrigins = expandLocalOrigins(
 app.use(securityHeaders);
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("CORS policy: Origin not allowed"));
-    },
+    origin: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: false
@@ -62,6 +60,7 @@ app.use("/api/marks", markRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/stability", stabilityRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/notes", noteHistoryRoutes);
 
 app.use(errorHandler);
 

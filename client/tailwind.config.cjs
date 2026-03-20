@@ -11,8 +11,8 @@ module.exports = {
         noir: "#020617"
       },
       fontFamily: {
-        display: ["Space Grotesk", "system-ui", "sans-serif"],
-        body: ["IBM Plex Sans", "system-ui", "sans-serif"]
+        display: ["Inter", "system-ui", "sans-serif"],
+        body: ["Inter", "system-ui", "sans-serif"]
       },
       boxShadow: {
         panel: "0 12px 30px rgba(2, 6, 23, 0.12)"

@@ -1,8 +1,5 @@
 const Subject = require("../models/Subject");
 const User = require("../models/User");
-const Student = require("../models/Student");
-const Mark = require("../models/Mark");
-const Attendance = require("../models/Attendance");
 const asyncHandler = require("../utils/asyncHandler");
 const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../utils/passwordPolicy");
 
@@ -66,6 +63,11 @@ exports.createSubject = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Subject ID and Subject Name are required" });
   }
 
+  const duplicateBySubjectId = await Subject.findOne({ subjectId });
+  if (duplicateBySubjectId) {
+    return res.status(400).json({ message: "Subject ID already exists" });
+  }
+
   let facultyUser;
   try {
     facultyUser = await resolveFacultyUser(facultyInput);
@@ -84,29 +86,32 @@ exports.createSubject = asyncHandler(async (req, res) => {
 });
 
 exports.getSubjects = asyncHandler(async (req, res) => {
-  if (req.user?.role === "Student") {
-    let student = await Student.findOne({ email: req.user.email?.toLowerCase() });
-    if (!student && req.user?.name) {
-      student = await Student.findOne({ name: new RegExp(`^${req.user.name}$`, "i") });
-    }
-    if (!student) return res.json([]);
+  const search = String(req.query.search || "").trim();
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, parseInt(req.query.limit, 10) || 10);
+  const isPaged = Boolean(req.query.page || req.query.limit);
+  const query = {};
+  if (search) {
+    const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    query.$or = [{ subjectId: regex }, { subjectName: regex }];
+  }
 
-    const [markSubjectIds, attendanceSubjectIds] = await Promise.all([
-      Mark.distinct("subjectId", { studentId: student._id }),
-      Attendance.distinct("subjectId", { studentId: student._id })
-    ]);
+  const baseQuery = Subject.find(query).populate("facultyId", "name email facultyCode").sort({ subjectName: 1 });
 
-    const subjectIds = [...new Set([...markSubjectIds, ...attendanceSubjectIds].map((id) => String(id)))];
-    if (subjectIds.length === 0) return res.json([]);
-
-    const subjects = await Subject.find({ _id: { $in: subjectIds } })
-      .populate("facultyId", "name email facultyCode")
-      .sort({ subjectName: 1 });
+  if (!isPaged) {
+    const subjects = await baseQuery;
     return res.json(subjects);
   }
 
-  const subjects = await Subject.find().populate("facultyId", "name email facultyCode");
-  res.json(subjects);
+  const total = await Subject.countDocuments(query);
+  const subjects = await baseQuery.skip((page - 1) * limit).limit(limit);
+
+  res.json({
+    items: subjects,
+    total,
+    page,
+    totalPages: Math.max(1, Math.ceil(total / limit))
+  });
 });
 
 exports.updateSubject = asyncHandler(async (req, res) => {
@@ -116,6 +121,14 @@ exports.updateSubject = asyncHandler(async (req, res) => {
   const nextSubjectId = String(req.body.subjectId || subject.subjectId).trim();
   const nextSubjectName = String(req.body.subjectName || subject.subjectName).trim();
   let nextFacultyId = subject.facultyId;
+
+  const duplicateBySubjectId = await Subject.findOne({
+    _id: { $ne: req.params.id },
+    subjectId: nextSubjectId
+  });
+  if (duplicateBySubjectId) {
+    return res.status(400).json({ message: "Subject ID already exists" });
+  }
 
   if (req.body.faculty) {
     let facultyUser;

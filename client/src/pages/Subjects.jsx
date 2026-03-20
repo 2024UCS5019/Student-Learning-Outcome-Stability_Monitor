@@ -3,6 +3,7 @@ import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
 import FormInput from "../components/FormInput";
 import RoleGate from "../components/RoleGate";
+import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 
@@ -16,6 +17,10 @@ const Subjects = () => {
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState("");
   const [showFacultyPassword, setShowFacultyPassword] = useState(false);
+  const [page, setPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
+  const [totalSubjects, setTotalSubjects] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [form, setForm] = useState({
     subjectId: "",
     subjectName: "",
@@ -25,9 +30,24 @@ const Subjects = () => {
     facultyPassword: ""
   });
 
+  const pageSize = 10;
   const load = async () => {
-    const { data } = await api.get("/subjects");
-    setSubjects(data);
+    const { data } = await api.get("/subjects", {
+      params: {
+        page,
+        limit: pageSize,
+        search: search.trim() || undefined
+      }
+    });
+    if (Array.isArray(data)) {
+      setSubjects(data);
+      setTotalSubjects(data.length);
+      setTotalPages(1);
+    } else {
+      setSubjects(data.items || []);
+      setTotalSubjects(data.total || 0);
+      setTotalPages(data.totalPages || 1);
+    }
   };
 
   const resetForm = () => {
@@ -45,10 +65,10 @@ const Subjects = () => {
 
   useEffect(() => {
     load();
-    const socket = io(socketUrl, { transports: ["websocket"] });
+    const socket = io(socketUrl);
     socket.on("subjects:updated", load);
     return () => socket.disconnect();
-  }, [user?.role]);
+  }, [user?.role, page, search]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -115,15 +135,17 @@ const Subjects = () => {
     load();
   };
 
-  const filteredSubjects = subjects.filter((s) => {
-    const query = search.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      (s.subjectId || "").toLowerCase().includes(query) ||
-      (s.subjectName || "").toLowerCase().includes(query) ||
-      (s.facultyId?.name || "").toLowerCase().includes(query)
-    );
-  });
+  useEffect(() => {
+    setPage(1);
+    setShowAll(false);
+  }, [search, subjects.length]);
+
+  const safePage = Math.min(page, totalPages);
+  const displaySubjects = showAll ? subjects : subjects.slice(0, 5);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const toggleRow = (id) => {
     setSelectedIds((prev) => {
@@ -136,17 +158,19 @@ const Subjects = () => {
 
   const toggleAll = (checked) => {
     if (checked) {
-      setSelectedIds(new Set(filteredSubjects.map((s) => s._id)));
+      setSelectedIds(new Set(displaySubjects.map((s) => s._id)));
     } else {
       setSelectedIds(new Set());
     }
   };
 
-  const allSelected = filteredSubjects.length > 0 && selectedIds.size === filteredSubjects.length;
+  const allSelected = displaySubjects.length > 0 && displaySubjects.every((s) => selectedIds.has(s._id));
+
+  const missingFacultyEmail = subjects.filter((s) => !s.facultyId?.email).length;
 
   return (
     <AppLayout title="Subjects">
-      <RoleGate roles={["Admin"]}>
+      <RoleGate roles={["Admin", "Faculty"]}>
         <form className="card-panel p-6 grid md:grid-cols-3 gap-4" onSubmit={addOrUpdateSubject}>
           {error && <p className="md:col-span-3 text-rose-600 text-sm">{error}</p>}
           <FormInput label="Faculty Subject ID" name="subjectId" value={form.subjectId} onChange={handleChange} required />
@@ -168,7 +192,8 @@ const Subjects = () => {
               <button
                 type="button"
                 onClick={() => setShowFacultyPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-2 my-auto h-7 w-8 flex items-center justify-center text-xs rounded border border-slate-200 bg-white text-slate-700"
+                className="absolute inset-y-0 right-2 my-auto h-7 w-8 flex items-center justify-center text-xs rounded border border-slate-200 bg-white"
+                style={{ color: "#111827" }}
                 aria-label={showFacultyPassword ? "Hide password" : "Show password"}
                 title={showFacultyPassword ? "Hide password" : "Show password"}
               >
@@ -215,7 +240,7 @@ const Subjects = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <RoleGate roles={["Admin"]}>
+        <RoleGate roles={["Admin", "Faculty"]}>
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm text-slate-600">
               Selected: {selectedIds.size}
@@ -229,15 +254,27 @@ const Subjects = () => {
             </button>
           </div>
         </RoleGate>
+        <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <div className="card-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Total Subjects</p>
+            <p className="text-2xl font-semibold text-ink">{totalSubjects}</p>
+          </div>
+          <div className="card-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Missing Faculty Email</p>
+            <p className="text-2xl font-semibold text-amber-700">{missingFacultyEmail}</p>
+            <p className="text-xs text-slate-500 mt-1">Why it matters: missing contact slows coordination.</p>
+          </div>
+        </div>
         <div className="card-panel overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <RoleGate roles={["Admin"]}>
-                  <th className="w-12 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <RoleGate roles={["Admin", "Faculty"]}>
+                  <th scope="col" className="w-12 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     <label className="inline-flex items-center gap-1 whitespace-nowrap">
                       <input
                         type="checkbox"
+                        aria-label="Select all subjects in view"
                         checked={allSelected}
                         onChange={(e) => toggleAll(e.target.checked)}
                       />
@@ -245,23 +282,24 @@ const Subjects = () => {
                     </label>
                   </th>
                 </RoleGate>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Faculty ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Faculty Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Faculty Email</th>
-                <RoleGate roles={["Admin"]}>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject ID</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject Name</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Faculty ID</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Faculty Name</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Faculty Email</th>
+                <RoleGate roles={["Admin", "Faculty"]}>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </RoleGate>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredSubjects.map((s) => (
+              {displaySubjects.map((s) => (
                 <tr key={s._id} className="hover:bg-gray-50">
-                  <RoleGate roles={["Admin"]}>
+                  <RoleGate roles={["Admin", "Faculty"]}>
                     <td className="w-12 px-3 py-4 text-sm">
                       <input
                         type="checkbox"
+                        aria-label={`Select ${s.subjectName || "subject"}`}
                         checked={selectedIds.has(s._id)}
                         onChange={() => toggleRow(s._id)}
                       />
@@ -272,7 +310,7 @@ const Subjects = () => {
                   <td className="px-6 py-4 text-sm">{s.facultyId?.facultyCode || "N/A"}</td>
                   <td className="px-6 py-4 text-sm">{s.facultyId?.name || "Faculty"}</td>
                   <td className="px-6 py-4 text-sm">{s.facultyId?.email || "N/A"}</td>
-                  <RoleGate roles={["Admin"]}>
+                  <RoleGate roles={["Admin", "Faculty"]}>
                     <td className="px-6 py-4 text-sm flex items-center gap-2">
                       <button
                         onClick={() => startEdit(s)}
@@ -290,9 +328,9 @@ const Subjects = () => {
                   </RoleGate>
                 </tr>
               ))}
-              {filteredSubjects.length === 0 && (
+              {subjects.length === 0 && (
                 <tr>
-                  <td className="px-6 py-6 text-sm text-slate-600" colSpan={user?.role === "Admin" ? 7 : 5}>
+                  <td className="px-6 py-6 text-sm text-slate-600" colSpan={user?.role === "Student" ? 5 : 7}>
                     {user?.role === "Student"
                       ? "No subjects found for your profile yet."
                       : "No subjects found."}
@@ -302,9 +340,28 @@ const Subjects = () => {
             </tbody>
           </table>
         </div>
+        {subjects.length > 5 && (
+          <div className="flex justify-end mt-2">
+            <button
+              type="button"
+              onClick={() => setShowAll((prev) => !prev)}
+              className="px-3 py-1.5 rounded-lg text-sm border border-slate-200 text-slate-700"
+            >
+              {showAll ? "Show Less" : "Show More"}
+            </button>
+          </div>
+        )}
+        <PaginationControls
+          page={safePage}
+          totalPages={totalPages}
+          totalItems={totalSubjects}
+          itemLabel="subjects"
+          onPageChange={setPage}
+        />
       </div>
     </AppLayout>
   );
 };
 
 export default Subjects;
+

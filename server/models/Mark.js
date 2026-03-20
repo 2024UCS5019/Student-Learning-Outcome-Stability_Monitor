@@ -11,4 +11,7 @@ const markSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+markSchema.index({ studentId: 1, subjectId: 1 });
+markSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("Mark", markSchema);

@@ -12,7 +12,7 @@ const authLimiter = createRateLimiter({
   message: "Too many authentication attempts. Try again later."
 });
 
-router.post("/register", authLimiter, auth, roles("Admin"), register);
+router.post("/register", authLimiter, register);
 router.post("/login", authLimiter, login);
 router.get("/google", googleAuth);
 router.get("/google/callback", googleCallback);

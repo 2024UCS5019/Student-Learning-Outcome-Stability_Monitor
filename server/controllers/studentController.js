@@ -3,6 +3,7 @@ const User = require("../models/User");
 const Mark = require("../models/Mark");
 const Attendance = require("../models/Attendance");
 const Stability = require("../models/Stability");
+const NoteHistory = require("../models/NoteHistory");
 const asyncHandler = require("../utils/asyncHandler");
 const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../utils/passwordPolicy");
 
@@ -38,6 +39,7 @@ const buildStudentDashboard = async (studentId) => {
   const marks = await Mark.find({ studentId }).populate("subjectId");
   const attendance = await Attendance.find({ studentId }).populate("subjectId");
   const stability = await Stability.findOne({ studentId });
+  const feedbackNotes = await NoteHistory.find({ targetType: "Student", targetId: studentId }).select("status").lean();
 
   const averageScore = marks.length > 0 ? marks.reduce((sum, m) => sum + m.marks, 0) / marks.length : 0;
   const overallAttendance = attendance.length > 0 ? attendance.reduce((sum, a) => sum + a.percentage, 0) / attendance.length : 0;
@@ -65,15 +67,33 @@ const buildStudentDashboard = async (studentId) => {
     subject: m.subjectId?.subjectName || "Unknown"
   }));
 
+  const feedbackSummary = { great: 0, average: 0, poor: 0, total: feedbackNotes.length };
+  feedbackNotes.forEach((note) => {
+    const status = note.status || "Average";
+    if (status === "Great") feedbackSummary.great += 1;
+    else if (status === "Poor") feedbackSummary.poor += 1;
+    else feedbackSummary.average += 1;
+  });
+
+  const riskDrivers = [];
   let riskLevel = "Low";
-  if (averageScore < 50 || overallAttendance < 75) riskLevel = "High";
-  else if (averageScore < 70 || overallAttendance < 85) riskLevel = "Medium";
+  if (averageScore < 50) riskDrivers.push("Low marks");
+  if (overallAttendance < 75) riskDrivers.push("Low attendance");
+  if (feedbackSummary.poor >= 1) riskDrivers.push("Poor feedback");
+
+  if (averageScore < 50 || overallAttendance < 75 || feedbackSummary.poor >= 2) {
+    riskLevel = "High";
+  } else if (averageScore < 70 || overallAttendance < 85 || feedbackSummary.poor >= 1) {
+    riskLevel = "Medium";
+  }
 
   return {
     averageScore,
     overallAttendance,
     stability: stability?.status || "Stable",
     riskLevel,
+    riskDrivers,
+    feedbackSummary,
     subjectMarks,
     subjectAttendance,
     performanceTrend
@@ -84,6 +104,23 @@ exports.createStudent = asyncHandler(async (req, res) => {
   const { password, ...studentPayload } = req.body;
   const normalizedStudentEmail = String(studentPayload.email || "").toLowerCase().trim();
   const accountUsername = (normalizedStudentEmail || String(studentPayload.name || "").trim());
+  const normalizedStudentId = String(studentPayload.studentId || "").trim();
+
+  if (!normalizedStudentId) {
+    return res.status(400).json({ message: "Student ID is required" });
+  }
+
+  const existingStudentById = await Student.findOne({ studentId: normalizedStudentId });
+  if (existingStudentById) {
+    return res.status(400).json({ message: "Student ID already exists" });
+  }
+
+  if (normalizedStudentEmail) {
+    const existingStudentByEmail = await Student.findOne({ email: normalizedStudentEmail });
+    if (existingStudentByEmail) {
+      return res.status(400).json({ message: "Student email already exists" });
+    }
+  }
 
   if (password && req.user?.role !== "Admin") {
     return res.status(403).json({ message: "Only Admin can set student account password" });
@@ -107,6 +144,7 @@ exports.createStudent = asyncHandler(async (req, res) => {
 
   const student = await Student.create({
     ...studentPayload,
+    studentId: normalizedStudentId,
     email: normalizedStudentEmail || undefined
   });
 
@@ -135,12 +173,51 @@ exports.createStudent = asyncHandler(async (req, res) => {
 });
 
 exports.getStudents = asyncHandler(async (req, res) => {
-  const { search, department, year } = req.query;
+  const { search, department, year, sort } = req.query;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, parseInt(req.query.limit, 10) || 10);
+  const isPaged = Boolean(req.query.page || req.query.limit);
   const query = {};
-  if (search) query.name = { $regex: search, $options: "i" };
+
+  const trimmedSearch = String(search || "").trim();
+  if (trimmedSearch) {
+    const regex = new RegExp(escapeRegex(trimmedSearch), "i");
+    const numericYear = Number(trimmedSearch);
+    query.$or = [
+      { studentId: regex },
+      { name: regex },
+      { department: regex }
+    ];
+    if (!Number.isNaN(numericYear)) {
+      query.$or.push({ year: numericYear });
+    }
+  }
   if (department) query.department = department;
   if (year) query.year = Number(year);
-  const students = await Student.find(query).lean();
+
+  const sortQuery = sort === "id" ? { studentId: 1 } : { name: 1, studentId: 1 };
+
+  if (!isPaged) {
+    const students = await Student.find(query).sort(sortQuery).lean();
+    const studentsWithStatus = await Promise.all(
+      students.map(async (student) => {
+        const linkedUser = await findStudentUserForProfile(student);
+        return {
+          ...student,
+          hasAccount: Boolean(linkedUser),
+          isBlocked: Boolean(linkedUser?.isBlocked)
+        };
+      })
+    );
+    return res.json(studentsWithStatus);
+  }
+
+  const total = await Student.countDocuments(query);
+  const students = await Student.find(query)
+    .sort(sortQuery)
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean();
 
   const studentsWithStatus = await Promise.all(
     students.map(async (student) => {
@@ -153,7 +230,12 @@ exports.getStudents = asyncHandler(async (req, res) => {
     })
   );
 
-  res.json(studentsWithStatus);
+  res.json({
+    items: studentsWithStatus,
+    total,
+    page,
+    totalPages: Math.max(1, Math.ceil(total / limit))
+  });
 });
 
 exports.getStudentById = asyncHandler(async (req, res) => {
@@ -206,7 +288,32 @@ exports.getMyDashboard = asyncHandler(async (req, res) => {
 });
 
 exports.updateStudent = asyncHandler(async (req, res) => {
-  const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const existing = await Student.findById(req.params.id);
+  if (!existing) return res.status(404).json({ message: "Student not found" });
+
+  const nextStudentId = String(req.body.studentId || existing.studentId || "").trim();
+  const nextEmail = String(req.body.email || existing.email || "").toLowerCase().trim();
+
+  const duplicateById = await Student.findOne({
+    _id: { $ne: req.params.id },
+    studentId: nextStudentId
+  });
+  if (duplicateById) {
+    return res.status(400).json({ message: "Student ID already exists" });
+  }
+
+  if (nextEmail) {
+    const duplicateByEmail = await Student.findOne({
+      _id: { $ne: req.params.id },
+      email: nextEmail
+    });
+    if (duplicateByEmail) {
+      return res.status(400).json({ message: "Student email already exists" });
+    }
+  }
+
+  const payload = { ...req.body, studentId: nextStudentId, email: nextEmail || undefined };
+  const student = await Student.findByIdAndUpdate(req.params.id, payload, { new: true });
   if (!student) return res.status(404).json({ message: "Student not found" });
   const io = req.app.get("io");
   if (io) io.emit("students:updated");

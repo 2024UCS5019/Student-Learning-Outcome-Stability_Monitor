@@ -76,7 +76,7 @@ const StudentDashboard = () => {
   };
 
   const getStabilityColor = (stability) => {
-    if (stability === "Stable") return "text-blue-600 bg-blue-100";
+    if (stability === "Stable") return "text-black bg-gray-200";
     if (stability === "Improving") return "text-green-600 bg-green-100";
     return "text-orange-600 bg-orange-100";
   };
@@ -129,6 +129,30 @@ const StudentDashboard = () => {
           <p className="text-sm text-gray-600">Risk Level</p>
           <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getRiskColor(data.riskLevel)}`}>
             {data.riskLevel}
+          </span>
+          {data.riskDrivers?.length ? (
+            <p className="text-xs text-slate-600 mt-2">Drivers: {data.riskDrivers.join(", ")}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="card-panel p-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-700">Feedback Summary</h3>
+          <span className="text-xs text-slate-500">Latest signals</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+            Great: {data.feedbackSummary?.great ?? 0}
+          </span>
+          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+            Average: {data.feedbackSummary?.average ?? 0}
+          </span>
+          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">
+            Poor: {data.feedbackSummary?.poor ?? 0}
+          </span>
+          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+            Total: {data.feedbackSummary?.total ?? 0}
           </span>
         </div>
       </div>

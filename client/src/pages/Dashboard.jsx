@@ -47,7 +47,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user?.role === "Student") return;
     load();
-    const socket = io(socketUrl, { transports: ["websocket"] });
+    const socket = io(socketUrl);
     const refresh = () => load();
     socket.on("marks:created", refresh);
     socket.on("marks:updated", refresh);
@@ -178,3 +178,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

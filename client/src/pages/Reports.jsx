@@ -53,19 +53,6 @@ const Reports = () => {
     }
   };
 
-  const downloadClassReport = async () => {
-    setError("");
-    try {
-      const { data } = await api.get(
-        `/reports/class?department=${encodeURIComponent(department)}&year=${encodeURIComponent(year)}&format=csv`,
-        { responseType: "blob" }
-      );
-      triggerDownload(data, "class-report.csv");
-    } catch (err) {
-      setError(err?.response?.data?.message || "Failed to download class report");
-    }
-  };
-
   return (
     <AppLayout title="Reports">
       <div className="card-panel p-6 grid md:grid-cols-3 gap-4">
@@ -91,16 +78,6 @@ const Reports = () => {
         >
           Download Student Report (PDF)
         </button>
-
-        {user?.role === "Admin" && (
-          <button
-            type="button"
-          className="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-center md:col-span-3"
-          onClick={downloadClassReport}
-        >
-          Download Class Report (CSV)
-          </button>
-        )}
       </div>
     </AppLayout>
   );

@@ -3,6 +3,7 @@ import { io } from "socket.io-client";
 import AppLayout from "../components/AppLayout";
 import FormInput from "../components/FormInput";
 import RoleGate from "../components/RoleGate";
+import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 
@@ -17,6 +18,10 @@ const Marks = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [filterSubject, setFilterSubject] = useState("");
   const [editingId, setEditingId] = useState("");
+  const [page, setPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
+  const [totalMarksCount, setTotalMarksCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [form, setForm] = useState({
     studentId: "",
     subjectId: "",
@@ -24,14 +29,31 @@ const Marks = () => {
     marks: ""
   });
 
+  const pageSize = 10;
   const load = async () => {
     try {
-      const { data } = await api.get("/marks");
-      setMarks(data);
+      const { data } = await api.get("/marks", {
+        params: {
+          page,
+          limit: pageSize,
+          subjectId: filterSubject || undefined
+        }
+      });
+      if (Array.isArray(data)) {
+        setMarks(data);
+        setTotalMarksCount(data.length);
+        setTotalPages(1);
+      } else {
+        setMarks(data.items || []);
+        setTotalMarksCount(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      }
       setError("");
     } catch (err) {
       setMarks([]);
       setError(err?.response?.data?.message || "Unable to load marks");
+      setTotalMarksCount(0);
+      setTotalPages(1);
     }
   };
 
@@ -62,12 +84,12 @@ const Marks = () => {
       loadStudents();
     }
     loadSubjects();
-    const socket = io(socketUrl, { transports: ["websocket"] });
+    const socket = io(socketUrl);
     socket.on("marks:created", load);
     socket.on("marks:updated", load);
     socket.on("marks:deleted", load);
     return () => socket.disconnect();
-  }, [user?.role]);
+  }, [user?.role, page, filterSubject]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -124,6 +146,18 @@ const Marks = () => {
     .sort((a, b) => (a.studentId?.name || "").localeCompare(b.studentId?.name || ""))
     .map((m) => m);
 
+  useEffect(() => {
+    setPage(1);
+    setShowAll(false);
+  }, [filterSubject]);
+
+  const safePage = Math.min(page, totalPages);
+  const displayMarks = showAll ? sortedMarks : sortedMarks.slice(0, 5);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const toggleRow = (id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -135,13 +169,13 @@ const Marks = () => {
 
   const toggleAll = (checked) => {
     if (checked) {
-      setSelectedIds(new Set(sortedMarks.map((m) => m._id)));
+      setSelectedIds(new Set(displayMarks.map((m) => m._id)));
     } else {
       setSelectedIds(new Set());
     }
   };
 
-  const allSelected = sortedMarks.length > 0 && selectedIds.size === sortedMarks.length;
+  const allSelected = displayMarks.length > 0 && displayMarks.every((m) => selectedIds.has(m._id));
   const normalizedTest = (value = "") => value.toLowerCase().replace(/\s+/g, "");
   const normalizeLabel = (name = "") => {
     const trimmed = name.trim();
@@ -171,6 +205,27 @@ const Marks = () => {
     if (marksValue >= 50) return { label: "Pass", tone: "text-sky-700 bg-sky-100" };
     return { label: "Needs Improvement", tone: "text-rose-700 bg-rose-100" };
   };
+  const totalMarks = totalMarksCount;
+  const lowMarksRecords = sortedMarks.filter((m) => Number(m.marks) < 50);
+  const lowMarksCount = lowMarksRecords.length;
+  const lowMarksNames = Array.from(
+    new Set(lowMarksRecords.map((m) => m.studentId?.name || "Student"))
+  );
+  const topScore = sortedMarks.reduce((best, m) => {
+    if (!best) return m;
+    return Number(m.marks) > Number(best.marks) ? m : best;
+  }, null);
+  const topScoreValue = topScore ? Number(topScore.marks) : null;
+  const topScoreRecords = topScoreValue === null
+    ? []
+    : sortedMarks.filter((m) => Number(m.marks) === topScoreValue);
+  const topScoreNames = Array.from(
+    new Set(topScoreRecords.map((m) => m.studentId?.name || "Student"))
+  );
+  const topScoreSubject = topScoreRecords[0]?.subjectId?.subjectName || "Subject";
+  const topThree = [...sortedMarks]
+    .sort((a, b) => Number(b.marks) - Number(a.marks))
+    .slice(0, 3);
 
   return (
     <AppLayout title="Marks">
@@ -234,6 +289,37 @@ const Marks = () => {
             </button>
           </div>
         </RoleGate>
+        <div className="grid md:grid-cols-3 gap-4 mb-4">
+          <div className="card-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Total Marks</p>
+            <p className="text-2xl font-semibold text-ink">{totalMarks}</p>
+          </div>
+          <div className="card-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Below 50</p>
+            <p className="text-2xl font-semibold text-rose-700">{lowMarksCount}</p>
+            {lowMarksNames.length > 0 ? (
+              <p className="text-xs text-slate-600 mt-1">
+                {lowMarksNames.join(", ")}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500 mt-1">Why it matters: identify students needing support.</p>
+            )}
+          </div>
+          <div className="card-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Top Score</p>
+            <p className="text-2xl font-semibold text-emerald-700">
+              {topScore ? `${topScore.marks}/100` : "N/A"}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {topScore ? `${topScoreNames.join(", ")} in ${topScoreSubject}` : "No data yet."}
+            </p>
+            {topThree.length > 0 ? (
+              <p className="text-xs text-slate-600 mt-2">
+                Top 3: {topThree.map((m) => `${m.studentId?.name || "Student"} (${m.marks})`).join(", ")}
+              </p>
+            ) : null}
+          </div>
+        </div>
         {user?.role === "Student" ? (
           <div className="grid md:grid-cols-2 gap-6">
             {testGroups.map((group) => (
@@ -266,7 +352,7 @@ const Marks = () => {
         ) : (
           <>
             <div className="md:hidden space-y-3">
-              {sortedMarks.map((m) => (
+              {displayMarks.map((m) => (
                 <div key={m._id} className="card-panel p-4">
                   {(() => {
                     const markMeta = getMarkMeta(m.marks);
@@ -322,10 +408,11 @@ const Marks = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <RoleGate roles={["Admin", "Faculty"]}>
-                      <th className="w-12 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th scope="col" className="w-12 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         <label className="inline-flex items-center gap-1 whitespace-nowrap">
                           <input
                             type="checkbox"
+                            aria-label="Select all marks in view"
                             checked={allSelected}
                             onChange={(e) => toggleAll(e.target.checked)}
                           />
@@ -333,23 +420,24 @@ const Marks = () => {
                         </label>
                       </th>
                     </RoleGate>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Test</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student Name</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject Name</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Test</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
                     <RoleGate roles={["Admin", "Faculty"]}>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </RoleGate>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {sortedMarks.map((m) => (
+                  {displayMarks.map((m) => (
                     <tr key={m._id} className="hover:bg-gray-50">
                       <RoleGate roles={["Admin", "Faculty"]}>
                         <td className="w-12 px-3 py-4 text-sm">
                           <input
                             type="checkbox"
+                            aria-label={`Select ${m.studentId?.name || "student"} ${m.testName}`}
                             checked={selectedIds.has(m._id)}
                             onChange={() => toggleRow(m._id)}
                           />
@@ -388,6 +476,24 @@ const Marks = () => {
                 </tbody>
               </table>
             </div>
+            {sortedMarks.length > 5 && (
+              <div className="flex justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAll((prev) => !prev)}
+                  className="px-3 py-1.5 rounded-lg text-sm border border-slate-200 text-slate-700"
+                >
+                  {showAll ? "Show Less" : "Show More"}
+                </button>
+              </div>
+            )}
+            <PaginationControls
+              page={safePage}
+              totalPages={totalPages}
+              totalItems={totalMarksCount}
+              itemLabel="marks"
+              onPageChange={setPage}
+            />
           </>
         )}
       </div>
@@ -396,3 +502,4 @@ const Marks = () => {
 };
 
 export default Marks;
+

@@ -26,12 +26,13 @@ const generateToken = (id) =>
   });
 
 exports.register = asyncHandler(async (req, res) => {
-  const username = normalizeUsername(String(req.body.username || ""));
+  const name = normalizeUsername(String(req.body.name || req.body.username || ""));
+  const incomingEmail = String(req.body.email || "").trim().toLowerCase();
   const { password } = req.body;
   const requestedRole = String(req.body.role || "");
 
-  if (!username || !password || !requestedRole) {
-    return res.status(400).json({ message: "Username, password and role are required" });
+  if (!name || !password || !requestedRole) {
+    return res.status(400).json({ message: "Name, password and role are required" });
   }
 
   if (!["Student", "Faculty"].includes(requestedRole)) {
@@ -42,11 +43,20 @@ exports.register = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   }
 
-  const exists = await User.findOne({ name: new RegExp(`^${escapeRegex(username)}$`, "i") });
+  if (incomingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(incomingEmail)) {
+    return res.status(400).json({ message: "Please enter a valid email address" });
+  }
+
+  const email = incomingEmail || await buildUniqueInternalEmail(name);
+  const exists = await User.findOne({
+    $or: [
+      { email },
+      { name: new RegExp(`^${escapeRegex(name)}$`, "i") }
+    ]
+  });
   if (exists) return res.status(400).json({ message: "User already exists" });
 
-  const email = await buildUniqueInternalEmail(username);
-  const user = await User.create({ name: username, email, password, role: requestedRole });
+  const user = await User.create({ name, email, password, role: requestedRole });
 
   res.status(201).json({
     id: user._id,

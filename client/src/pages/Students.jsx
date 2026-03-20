@@ -5,6 +5,7 @@ import AppLayout from "../components/AppLayout";
 import FormInput from "../components/FormInput";
 import Table from "../components/Table";
 import RoleGate from "../components/RoleGate";
+import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 
@@ -21,6 +22,10 @@ const Students = () => {
   const [sortMode, setSortMode] = useState("name"); // "name" | "id"
   const [showPassword, setShowPassword] = useState(false);
   const [editingId, setEditingId] = useState("");
+  const [page, setPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [form, setForm] = useState({
     studentId: "",
     name: "",
@@ -35,14 +40,32 @@ const Students = () => {
     return <Navigate to="/my-dashboard" replace />;
   }
 
+  const pageSize = 10;
   const load = async () => {
     try {
-      const { data } = await api.get("/students");
-      setStudents(data);
+      const { data } = await api.get("/students", {
+        params: {
+          page,
+          limit: pageSize,
+          search: search.trim() || undefined,
+          sort: sortMode
+        }
+      });
+      if (Array.isArray(data)) {
+        setStudents(data);
+        setTotalStudents(data.length);
+        setTotalPages(1);
+      } else {
+        setStudents(data.items || []);
+        setTotalStudents(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      }
       setPageError("");
     } catch (err) {
       setPageError(err?.response?.data?.message || "Unable to load students");
       setStudents([]);
+      setTotalStudents(0);
+      setTotalPages(1);
     }
   };
 
@@ -53,12 +76,12 @@ const Students = () => {
       setStudents([]);
       setPageError("Only Admin or Faculty can add and manage student details.");
     }
-    const socket = io(socketUrl, { transports: ["websocket"] });
+    const socket = io(socketUrl);
     socket.on("students:updated", () => {
       if (canManageStudents) load();
     });
     return () => socket.disconnect();
-  }, [canManageStudents]);
+  }, [canManageStudents, page, sortMode, search]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -135,23 +158,17 @@ const Students = () => {
     }
   };
 
-  const filteredStudents = students.filter((s) => {
-    const query = search.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      (s.studentId || "").toLowerCase().includes(query) ||
-      (s.name || "").toLowerCase().includes(query) ||
-      (s.department || "").toLowerCase().includes(query) ||
-      String(s.year || "").toLowerCase().includes(query)
-    );
-  }).sort((a, b) => {
-    if (sortMode === "name") {
-      const nameCompare = (a.name || "").localeCompare(b.name || "");
-      if (nameCompare !== 0) return nameCompare;
-      return (a.studentId || "").localeCompare(b.studentId || "");
-    }
-    return (a.studentId || "").localeCompare(b.studentId || "");
-  });
+  useEffect(() => {
+    setPage(1);
+    setShowAll(false);
+  }, [search, sortMode]);
+
+  const safePage = Math.min(page, totalPages);
+  const displayStudents = showAll ? students : students.slice(0, 5);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const toggleRow = (id) => {
     setSelectedIds((prev) => {
@@ -164,13 +181,16 @@ const Students = () => {
 
   const toggleAll = (checked) => {
     if (checked) {
-      setSelectedIds(new Set(filteredStudents.map((s) => s._id)));
+      setSelectedIds(new Set(displayStudents.map((s) => s._id)));
     } else {
       setSelectedIds(new Set());
     }
   };
 
-  const allSelected = filteredStudents.length > 0 && selectedIds.size === filteredStudents.length;
+  const allSelected = displayStudents.length > 0 && displayStudents.every((s) => selectedIds.has(s._id));
+
+  const blockedCount = students.filter((s) => s.hasAccount && s.isBlocked).length;
+  const noAccountCount = students.filter((s) => !s.hasAccount).length;
 
   return (
     <AppLayout title="Students">
@@ -277,6 +297,22 @@ const Students = () => {
             </div>
           </RoleGate>
         </div>
+        <div className="grid md:grid-cols-3 gap-4 mb-4">
+          <div className="card-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Total Students</p>
+            <p className="text-2xl font-semibold text-ink">{totalStudents}</p>
+          </div>
+          <div className="card-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Blocked Accounts</p>
+            <p className="text-2xl font-semibold text-rose-700">{blockedCount}</p>
+            <p className="text-xs text-slate-500 mt-1">Why it matters: blocked users miss updates.</p>
+          </div>
+          <div className="card-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">No Account</p>
+            <p className="text-2xl font-semibold text-amber-700">{noAccountCount}</p>
+            <p className="text-xs text-slate-500 mt-1">Why it matters: no login means no visibility.</p>
+          </div>
+        </div>
         <RoleGate roles={["Admin", "Faculty"]}>
           <div className="flex items-center justify-end mb-3">
             <button
@@ -293,10 +329,11 @@ const Students = () => {
             <thead className="bg-gray-50">
               <tr>
                 <RoleGate roles={["Admin", "Faculty"]}>
-                  <th className="w-12 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th scope="col" className="w-12 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     <label className="inline-flex items-center gap-1 whitespace-nowrap">
                       <input
                         type="checkbox"
+                        aria-label="Select all students in view"
                         checked={allSelected}
                         onChange={(e) => toggleAll(e.target.checked)}
                       />
@@ -304,24 +341,25 @@ const Students = () => {
                     </label>
                   </th>
                 </RoleGate>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Year</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Year</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <RoleGate roles={["Admin", "Faculty"]}>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </RoleGate>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredStudents.map((s) => (
+              {displayStudents.map((s) => (
                 <tr key={s._id} onClick={() => navigate(`/students/${s._id}`)} className="hover:bg-gray-50 cursor-pointer">
                   <RoleGate roles={["Admin", "Faculty"]}>
                     <td className="w-12 px-3 py-4 text-sm">
                       <input
                         type="checkbox"
+                        aria-label={`Select ${s.name || "student"}`}
                         checked={selectedIds.has(s._id)}
                         onClick={(e) => e.stopPropagation()}
                         onChange={() => toggleRow(s._id)}
@@ -338,18 +376,18 @@ const Students = () => {
                   </td>
                   <RoleGate roles={["Admin", "Faculty"]}>
                     <td className="px-6 py-4 text-sm flex items-center gap-2">
-                      <RoleGate roles={["Admin"]}>
+                      <RoleGate roles={["Admin", "Faculty"]}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             startEdit(s);
                           }}
-                          className="px-3 py-1.5 text-sm rounded-lg bg-sky-600 text-white hover:bg-sky-700"
+                          className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-sky-700 text-white hover:bg-sky-800 transition-colors"
                         >
                           Edit
                         </button>
                       </RoleGate>
-                      <RoleGate roles={["Admin"]}>
+                      <RoleGate roles={["Admin", "Faculty"]}>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -358,7 +396,11 @@ const Students = () => {
                           }}
                           disabled={!s.hasAccount}
                           title={s.hasAccount ? (s.isBlocked ? "Unblock student" : "Block student") : "No account to block"}
-                          className={`px-3 py-1.5 text-sm rounded-lg text-white disabled:opacity-50 ${s.isBlocked ? "bg-emerald-600 hover:bg-emerald-700" : "bg-amber-600 hover:bg-amber-700"}`}
+                          className={`px-3 py-1.5 text-sm font-semibold rounded-lg text-white border transition-all disabled:opacity-50 ${
+                            s.isBlocked
+                              ? "bg-emerald-600 hover:bg-emerald-700 border-transparent"
+                              : "bg-amber-600 hover:bg-amber-700 border-slate-900"
+                          }`}
                         >
                           {s.isBlocked ? "Unblock" : "Block"}
                         </button>
@@ -368,7 +410,7 @@ const Students = () => {
                           e.stopPropagation();
                           deleteStudent(s._id);
                         }}
-                        className="px-3 py-1.5 text-sm rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                        className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors"
                       >
                         Delete
                       </button>
@@ -379,9 +421,28 @@ const Students = () => {
             </tbody>
           </table>
         </div>
+        {students.length > 5 && (
+          <div className="flex justify-end mt-2">
+            <button
+              type="button"
+              onClick={() => setShowAll((prev) => !prev)}
+              className="px-3 py-1.5 rounded-lg text-sm border border-slate-200 text-slate-700"
+            >
+              {showAll ? "Show Less" : "Show More"}
+            </button>
+          </div>
+        )}
+        <PaginationControls
+          page={safePage}
+          totalPages={totalPages}
+          totalItems={totalStudents}
+          itemLabel="students"
+          onPageChange={setPage}
+        />
       </div>
     </AppLayout>
   );
 };
 
 export default Students;
+
