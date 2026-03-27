@@ -1,0 +1,7 @@
+{
+  "installCommand": "echo \"Installing dependencies...\" && npm ci --no-audit --fund=false --loglevel=info",
+  "buildCommand": "echo \"Building...\" && npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+

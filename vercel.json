@@ -1,0 +1,7 @@
+{
+  "installCommand": "echo \"Installing frontend dependencies (client)...\" && cd client && npm ci --no-audit --fund=false --loglevel=info",
+  "buildCommand": "echo \"Building frontend (client)...\" && cd client && npm run build",
+  "outputDirectory": "client/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+
