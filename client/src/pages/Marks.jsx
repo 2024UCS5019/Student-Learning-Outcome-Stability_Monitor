@@ -18,12 +18,15 @@ const socketUrl = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl();
 
 const Marks = () => {
   const { user } = useAuth();
+  const isStudent = user?.role === "Student";
+  const isFaculty = user?.role === "Faculty";
   const [marks, setMarks] = useState([]);
   const [students, setStudents] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [filterSubject, setFilterSubject] = useState("");
+  const [filterTest, setFilterTest] = useState("");
   const [editingId, setEditingId] = useState("");
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
@@ -47,10 +50,10 @@ const Marks = () => {
         return;
       }
 
+      const shouldFetchAll = isFaculty && Boolean(filterSubject);
       const { data } = await api.get("/marks", {
         params: {
-          page,
-          limit: pageSize,
+          ...(shouldFetchAll ? {} : { page, limit: pageSize }),
           subjectId: filterSubject || undefined
         }
       });
@@ -106,11 +109,18 @@ const Marks = () => {
 
   useEffect(() => {
     load();
-    if (user?.role !== "Student") {
+    if (!isStudent) {
       loadStudents();
     }
     loadSubjects();
   }, [user?.role, page, filterSubject]);
+
+  useEffect(() => {
+    if (!isFaculty) return;
+    if (filterSubject) return;
+    if (subjects.length !== 1) return;
+    setFilterSubject(subjects[0]._id);
+  }, [isFaculty, filterSubject, subjects]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -206,15 +216,33 @@ const Marks = () => {
     }
   };
 
+  const normalizedTest = (value = "") =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  const normalizeLabel = (name = "") => {
+    const trimmed = name.trim();
+    if (!trimmed) return "Test";
+    const normalized = normalizedTest(trimmed);
+    if (normalized === "internal1") return "Internal 1";
+    if (normalized === "internal2") return "Internal 2";
+    return trimmed;
+  };
+
   const sortedMarks = marks
     .filter(m => !filterSubject || m.subjectId?._id === filterSubject)
+    .filter((m) => {
+      if (!filterTest) return true;
+      const normalized = normalizedTest(m.testName);
+      return normalized === filterTest;
+    })
     .sort((a, b) => (a.studentId?.name || "").localeCompare(b.studentId?.name || ""))
     .map((m) => m);
 
   useEffect(() => {
     setPage(1);
     setShowAll(false);
-  }, [filterSubject]);
+  }, [filterSubject, filterTest]);
 
   const safePage = Math.min(page, totalPages);
   const displayMarks = showAll ? sortedMarks : sortedMarks.slice(0, 5);
@@ -241,15 +269,6 @@ const Marks = () => {
   };
 
   const allSelected = displayMarks.length > 0 && displayMarks.every((m) => selectedIds.has(m._id));
-  const normalizedTest = (value = "") => value.toLowerCase().replace(/\s+/g, "");
-  const normalizeLabel = (name = "") => {
-    const trimmed = name.trim();
-    if (!trimmed) return "Test";
-    const normalized = normalizedTest(trimmed);
-    if (normalized === "internal1") return "Internal 1";
-    if (normalized === "internal2") return "Internal 2";
-    return trimmed;
-  };
   const testGroupsMap = new Map([
     ["internal1", { key: "internal1", label: "Internal 1", rows: [] }],
     ["internal2", { key: "internal2", label: "Internal 2", rows: [] }]
@@ -271,10 +290,17 @@ const Marks = () => {
     return { label: "Needs Improvement", tone: "text-rose-700 bg-rose-100" };
   };
   const totalMarks = totalMarksCount;
+  const describeRecord = (m) => {
+    const name = m.studentId?.name || "Student";
+    const subjectName = m.subjectId?.subjectName || "Subject";
+    const testLabel = normalizeLabel(m.testName || "");
+    if (filterSubject) return `${name} (${testLabel})`;
+    return `${name} (${subjectName} - ${testLabel})`;
+  };
   const lowMarksRecords = sortedMarks.filter((m) => Number(m.marks) < 50);
   const lowMarksCount = lowMarksRecords.length;
   const lowMarksNames = Array.from(
-    new Set(lowMarksRecords.map((m) => m.studentId?.name || "Student"))
+    new Set(lowMarksRecords.map(describeRecord))
   );
   const topScore = sortedMarks.reduce((best, m) => {
     if (!best) return m;
@@ -284,13 +310,78 @@ const Marks = () => {
   const topScoreRecords = topScoreValue === null
     ? []
     : sortedMarks.filter((m) => Number(m.marks) === topScoreValue);
-  const topScoreNames = Array.from(
-    new Set(topScoreRecords.map((m) => m.studentId?.name || "Student"))
-  );
+  const topScoreNames = Array.from(new Set(topScoreRecords.map(describeRecord)));
   const topScoreSubject = topScoreRecords[0]?.subjectId?.subjectName || "Subject";
   const topThree = [...sortedMarks]
     .sort((a, b) => Number(b.marks) - Number(a.marks))
     .slice(0, 3);
+
+  const facultySubject = filterSubject
+    ? subjects.find((s) => String(s._id) === String(filterSubject))
+    : null;
+
+  const facultyMarks = marks
+    .filter((m) => !filterSubject || m.subjectId?._id === filterSubject)
+    .sort((a, b) => (a.studentId?.name || "").localeCompare(b.studentId?.name || ""));
+
+  const facultyTestGroupsMap = new Map([
+    ["internal1", { key: "internal1", label: "Internal 1" }],
+    ["internal2", { key: "internal2", label: "Internal 2" }]
+  ]);
+
+  const facultyRowsMap = new Map();
+  const pickLatest = (current, next) => {
+    if (!current) return next;
+    const currentTime = new Date(current.createdAt || current.date || 0).getTime();
+    const nextTime = new Date(next.createdAt || next.date || 0).getTime();
+    return nextTime >= currentTime ? next : current;
+  };
+
+  facultyMarks.forEach((m) => {
+    const studentKey = m.studentId?._id || m.studentId;
+    const subjectKey = m.subjectId?._id || m.subjectId;
+    if (!studentKey || !subjectKey) return;
+    const rowKey = `${studentKey}|${subjectKey}`;
+    if (!facultyRowsMap.has(rowKey)) {
+      facultyRowsMap.set(rowKey, {
+        key: rowKey,
+        student: m.studentId,
+        subject: m.subjectId,
+        marksByTest: {}
+      });
+    }
+    const row = facultyRowsMap.get(rowKey);
+    const groupKey = normalizedTest(m.testName) || "test";
+    if (!facultyTestGroupsMap.has(groupKey)) {
+      facultyTestGroupsMap.set(groupKey, { key: groupKey, label: normalizeLabel(m.testName) });
+    }
+    row.marksByTest[groupKey] = pickLatest(row.marksByTest[groupKey], m);
+  });
+
+  const facultyRows = [...facultyRowsMap.values()]
+    .filter((row) => Object.keys(row.marksByTest || {}).length > 0)
+    .sort((a, b) => (a.student?.name || "").localeCompare(b.student?.name || ""));
+
+  const facultyGroupKeys = new Set(
+    facultyMarks
+      .map((m) => normalizedTest(m.testName))
+      .filter(Boolean)
+  );
+
+  const facultyTestGroups = [...facultyTestGroupsMap.values()].filter(
+    (group) => group.key === "internal1" || group.key === "internal2" || facultyGroupKeys.has(group.key)
+  );
+
+  const prefillNewMark = (student, subject, testName) => {
+    setEditingId("");
+    setForm({
+      studentId: student?._id || "",
+      subjectId: subject?._id || "",
+      testName,
+      marks: ""
+    });
+    setError("");
+  };
 
   return (
     <AppLayout title="Marks">
@@ -310,7 +401,20 @@ const Marks = () => {
               {subjects.map(s => <option key={s._id} value={s._id}>{s.subjectName} ({s.subjectId})</option>)}
             </select>
           </div>
-          <FormInput label="Test Name" name="testName" value={form.testName} onChange={handleChange} required />
+          <FormInput
+            label="Test Name"
+            name="testName"
+            value={form.testName}
+            onChange={handleChange}
+            required
+            list="mark-test-names"
+            placeholder="Test name"
+            className="bg-white backdrop-blur-0 focus:ring-0 focus:border-slate-300"
+          />
+          <datalist id="mark-test-names">
+            <option value="Internal 1" />
+            <option value="Internal 2" />
+          </datalist>
           <FormInput label="Marks" name="marks" type="number" min="0" max="100" value={form.marks} onChange={handleChange} required />
           <div className="md:col-span-4 flex gap-3">
             <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
@@ -340,7 +444,17 @@ const Marks = () => {
             {subjects.map(s => <option key={s._id} value={s._id}>{s.subjectName}</option>)}
           </select>
         </div>
-        <RoleGate roles={["Admin", "Faculty"]}>
+        <RoleGate roles={["Admin"]}>
+          <div className="card-panel p-4 mb-4">
+            <label className="block text-sm font-medium mb-1">Filter by Test</label>
+            <select value={filterTest} onChange={(e) => setFilterTest(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+              <option value="">All Tests</option>
+              <option value="internal1">Internal 1</option>
+              <option value="internal2">Internal 2</option>
+            </select>
+          </div>
+        </RoleGate>
+        <RoleGate roles={["Admin"]}>
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm text-slate-600">
               Selected: {selectedIds.size}
@@ -376,16 +490,20 @@ const Marks = () => {
               {topScore ? `${topScore.marks}/100` : "N/A"}
             </p>
             <p className="text-xs text-slate-500 mt-1">
-              {topScore ? `${topScoreNames.join(", ")} in ${topScoreSubject}` : "No data yet."}
+              {topScore
+                ? (filterSubject
+                  ? `${topScoreNames.join(", ")} in ${topScoreSubject}`
+                  : topScoreNames.join(", "))
+                : "No data yet."}
             </p>
             {topThree.length > 0 ? (
               <p className="text-xs text-slate-600 mt-2">
-                Top 3: {topThree.map((m) => `${m.studentId?.name || "Student"} (${m.marks})`).join(", ")}
+                Top 3: {topThree.map((m) => `${describeRecord(m)} (${m.marks})`).join(", ")}
               </p>
             ) : null}
           </div>
         </div>
-        {user?.role === "Student" ? (
+        {isStudent ? (
           <div className="grid md:grid-cols-2 gap-6">
             {testGroups.map((group) => (
               <div key={group.key} className="card-panel overflow-hidden">
@@ -414,6 +532,89 @@ const Marks = () => {
               </div>
             ))}
           </div>
+        ) : isFaculty ? (
+          <div className="space-y-4">
+            <div className="card-panel overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Internal Marks</p>
+                  <p className="text-xs text-slate-500">
+                    {facultySubject ? `${facultySubject.subjectName} (${facultySubject.subjectId})` : "Select a subject to allocate marks."}
+                  </p>
+                </div>
+                {facultySubject ? (
+                  <p className="text-xs text-slate-500">Students: {facultyRows.length}</p>
+                ) : null}
+              </div>
+              {!facultySubject ? (
+                <div className="px-6 py-6 text-sm text-slate-600">Choose a subject from the filter above.</div>
+              ) : facultyRows.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-slate-600">No marks found yet.</div>
+              ) : null}
+            </div>
+
+            {facultySubject && facultyRows.length > 0 ? (
+              <div className="grid md:grid-cols-2 gap-6">
+                {facultyTestGroups.map((block) => (
+                  <div key={block.key} className="card-panel overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-200 text-sm font-semibold text-slate-700">{block.label}</div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[560px]">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {facultyRows.map((row) => {
+                            const mark = row.marksByTest?.[block.key] || null;
+                            return (
+                              <tr key={`${row.key}:${block.key}`} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 text-sm">{row.student?.studentId || "N/A"}</td>
+                                <td className="px-6 py-4 text-sm">{row.student?.name || "Student"}</td>
+                                <td className="px-6 py-4 text-sm">{mark ? mark.marks : "—"}</td>
+                                <td className="px-6 py-4 text-sm">
+                                  {mark ? (
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => startEdit(mark)}
+                                        className="px-3 py-1.5 text-xs rounded-lg bg-sky-600 text-white hover:bg-sky-700"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteMark(mark._id)}
+                                        className="px-3 py-1.5 text-xs rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => prefillNewMark(row.student, row.subject, block.label)}
+                                      className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+                                    >
+                                      Add
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
         ) : (
           <>
             <div className="md:hidden space-y-3">
@@ -423,14 +624,16 @@ const Marks = () => {
                     const markMeta = getMarkMeta(m.marks);
                     return (
                   <div className="flex items-start justify-between gap-3">
-                    <label className="inline-flex items-center gap-2 text-xs text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(m._id)}
-                        onChange={() => toggleRow(m._id)}
-                      />
-                      Select
-                    </label>
+                    <RoleGate roles={["Admin"]}>
+                      <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(m._id)}
+                          onChange={() => toggleRow(m._id)}
+                        />
+                        Select
+                      </label>
+                    </RoleGate>
                     <div className="text-right">
                       <p className="text-[11px] uppercase tracking-wide text-slate-500">Marks</p>
                       <p className="text-lg font-bold text-slate-900 leading-tight">{m.marks}/100</p>
@@ -447,20 +650,22 @@ const Marks = () => {
                     <p><span className="text-slate-500">Subject:</span> {m.subjectId?.subjectName || "Subject"}</p>
                     <p><span className="text-slate-500">Test:</span> {m.testName}</p>
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => startEdit(m)}
-                      className="px-3 py-1.5 text-sm rounded-lg bg-sky-600 text-white hover:bg-sky-700"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteMark(m._id)}
-                      className="px-3 py-1.5 text-sm rounded-lg bg-rose-600 text-white hover:bg-rose-700"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  <RoleGate roles={["Admin", "Faculty"]}>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => startEdit(m)}
+                        className="px-3 py-1.5 text-sm rounded-lg bg-sky-600 text-white hover:bg-sky-700"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteMark(m._id)}
+                        className="px-3 py-1.5 text-sm rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </RoleGate>
                 </div>
               ))}
               {sortedMarks.length === 0 && (
@@ -472,7 +677,7 @@ const Marks = () => {
               <table className="w-full min-w-[920px]">
                 <thead className="bg-gray-50">
                   <tr>
-                    <RoleGate roles={["Admin", "Faculty"]}>
+                    <RoleGate roles={["Admin"]}>
                       <th scope="col" className="w-12 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         <label className="inline-flex items-center gap-1 whitespace-nowrap">
                           <input
@@ -498,7 +703,7 @@ const Marks = () => {
                 <tbody className="divide-y divide-gray-200">
                   {displayMarks.map((m) => (
                     <tr key={m._id} className="hover:bg-gray-50">
-                      <RoleGate roles={["Admin", "Faculty"]}>
+                      <RoleGate roles={["Admin"]}>
                         <td className="w-12 px-3 py-4 text-sm">
                           <input
                             type="checkbox"

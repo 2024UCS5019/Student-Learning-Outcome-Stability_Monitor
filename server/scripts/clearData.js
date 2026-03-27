@@ -1,5 +1,6 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
+const connectDB = require("../config/db");
 const Student = require("../models/Student");
 const Subject = require("../models/Subject");
 const Mark = require("../models/Mark");
@@ -8,7 +9,7 @@ const Stability = require("../models/Stability");
 
 const clearData = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await connectDB();
     console.log("Connected to MongoDB");
 
     await Student.deleteMany({});

@@ -4,7 +4,7 @@ const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
 
 router.post("/", auth, roles("Faculty", "Admin"), ctrl.createMark);
-router.get("/", auth, roles("Faculty", "Admin", "Student"), ctrl.getMarks);
+router.get("/", auth, roles("Faculty", "Admin", "Student", "Viewer"), ctrl.getMarks);
 router.put("/:id", auth, roles("Faculty", "Admin"), ctrl.updateMark);
 router.delete("/:id", auth, roles("Faculty", "Admin"), ctrl.deleteMark);
 

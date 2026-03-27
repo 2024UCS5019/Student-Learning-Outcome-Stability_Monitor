@@ -1,10 +1,11 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
+const connectDB = require("../config/db");
 const Student = require("../models/Student");
 
 const updateStudent = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await connectDB();
     console.log("Connected to MongoDB");
 
     // Update Tharun's email

@@ -7,6 +7,7 @@ import useAuth from "../hooks/useAuth";
 
 const mobileLinks = [
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/approvals", label: "Approvals" },
   { to: "/students", label: "Students" },
   { to: "/subjects", label: "Subjects" },
   { to: "/marks", label: "Marks" },
@@ -45,6 +46,7 @@ const MobileNav = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const links = mobileLinks.filter((link) => {
     if (user?.role === "Student" && link.to === "/students") return false;
+    if (link.to === "/approvals" && user?.role !== "Admin") return false;
     return true;
   });
 

@@ -1,5 +1,6 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
+const connectDB = require("../config/db");
 
 const User = require("../models/User");
 const Student = require("../models/Student");
@@ -10,12 +11,8 @@ const Stability = require("../models/Stability");
 const { updateStabilityForStudent } = require("../services/stabilityService");
 const { isStrongPassword } = require("../utils/passwordPolicy");
 
-const connect = async () => {
-  await mongoose.connect(process.env.MONGO_URI);
-};
-
 const seed = async () => {
-  await connect();
+  await connectDB();
 
   await Promise.all([
     User.deleteMany({}),

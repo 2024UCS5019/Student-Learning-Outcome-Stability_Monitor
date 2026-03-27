@@ -57,7 +57,6 @@ const resolveFacultyUser = async ({ facultyCode, facultyName, facultyEmail, facu
 exports.createSubject = asyncHandler(async (req, res) => {
   const subjectId = String(req.body.subjectId || "").trim();
   const subjectName = String(req.body.subjectName || "").trim();
-  const facultyInput = parseFacultyPayload(req.body);
 
   if (!subjectId || !subjectName) {
     return res.status(400).json({ message: "Subject ID and Subject Name are required" });
@@ -69,10 +68,21 @@ exports.createSubject = asyncHandler(async (req, res) => {
   }
 
   let facultyUser;
-  try {
-    facultyUser = await resolveFacultyUser(facultyInput);
-  } catch (error) {
-    return res.status(400).json({ message: error.message || "Invalid faculty details" });
+  if (req.user?.role === "Faculty") {
+    if (!req.user?._id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (req.user.role !== "Faculty") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    facultyUser = req.user;
+  } else {
+    const facultyInput = parseFacultyPayload(req.body);
+    try {
+      facultyUser = await resolveFacultyUser(facultyInput);
+    } catch (error) {
+      return res.status(400).json({ message: error.message || "Invalid faculty details" });
+    }
   }
 
   const subject = await Subject.create({
@@ -91,12 +101,20 @@ exports.getSubjects = asyncHandler(async (req, res) => {
   const limit = Math.min(100, parseInt(req.query.limit, 10) || 10);
   const isPaged = Boolean(req.query.page || req.query.limit);
   const query = {};
+
+  if (req.user?.role === "Faculty") {
+    query.facultyId = req.user._id;
+  }
+
   if (search) {
     const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
     query.$or = [{ subjectId: regex }, { subjectName: regex }];
   }
 
-  const baseQuery = Subject.find(query).populate("facultyId", "name email facultyCode").sort({ subjectName: 1 });
+  const baseQuery = Subject.find(query)
+    .populate("facultyId", "name email facultyCode")
+    .collation({ locale: "en", numericOrdering: true })
+    .sort({ subjectId: 1, subjectName: 1 });
 
   if (!isPaged) {
     const subjects = await baseQuery;
@@ -118,6 +136,10 @@ exports.updateSubject = asyncHandler(async (req, res) => {
   const subject = await Subject.findById(req.params.id);
   if (!subject) return res.status(404).json({ message: "Subject not found" });
 
+  if (req.user?.role === "Faculty" && String(subject.facultyId) !== String(req.user._id)) {
+    return res.status(403).json({ message: "Access denied" });
+  }
+
   const nextSubjectId = String(req.body.subjectId || subject.subjectId).trim();
   const nextSubjectName = String(req.body.subjectName || subject.subjectName).trim();
   let nextFacultyId = subject.facultyId;
@@ -130,7 +152,7 @@ exports.updateSubject = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Subject ID already exists" });
   }
 
-  if (req.body.faculty) {
+  if (req.user?.role === "Admin" && req.body.faculty) {
     let facultyUser;
     try {
       facultyUser = await resolveFacultyUser(parseFacultyPayload(req.body));
@@ -138,7 +160,7 @@ exports.updateSubject = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: error.message || "Invalid faculty details" });
     }
     nextFacultyId = facultyUser._id;
-  } else if (req.body.facultyId) {
+  } else if (req.user?.role === "Admin" && req.body.facultyId) {
     nextFacultyId = req.body.facultyId;
   }
 
@@ -153,8 +175,14 @@ exports.updateSubject = asyncHandler(async (req, res) => {
 });
 
 exports.deleteSubject = asyncHandler(async (req, res) => {
-  const subject = await Subject.findByIdAndDelete(req.params.id);
+  const subject = await Subject.findById(req.params.id);
   if (!subject) return res.status(404).json({ message: "Subject not found" });
+
+  if (req.user?.role === "Faculty" && String(subject.facultyId) !== String(req.user._id)) {
+    return res.status(403).json({ message: "Access denied" });
+  }
+
+  await Subject.findByIdAndDelete(req.params.id);
   const io = req.app.get("io");
   if (io) io.emit("subjects:updated");
   res.json({ message: "Subject deleted" });

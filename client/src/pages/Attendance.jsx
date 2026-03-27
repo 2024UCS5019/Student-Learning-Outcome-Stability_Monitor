@@ -25,6 +25,7 @@ const Attendance = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [filterSubject, setFilterSubject] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
   const [totalRecordsCount, setTotalRecordsCount] = useState(0);
@@ -93,6 +94,12 @@ const Attendance = () => {
         ? subjectsRes.data.filter((s) => s.facultyId?._id === user.id)
         : subjectsRes.data;
       setSubjects(filteredSubjects);
+      if (user?.role === "Faculty" && filteredSubjects.length === 1) {
+        setForm((prev) => {
+          if (editingId || prev.subjectId) return prev;
+          return { ...prev, subjectId: filteredSubjects[0]._id };
+        });
+      }
     } catch {
       setStudents([]);
       setSubjects([]);
@@ -144,7 +151,9 @@ const Attendance = () => {
 
   const saveAttendance = async (e) => {
     e.preventDefault();
+    if (isSaving) return;
     setError("");
+    setIsSaving(true);
     try {
       const payload = { ...form, percentage: Number(form.percentage) };
       if (editingId) {
@@ -159,6 +168,8 @@ const Attendance = () => {
       load();
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to save attendance");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -274,8 +285,11 @@ const Attendance = () => {
           </div>
           <FormInput label="Percentage" name="percentage" type="number" min="0" max="100" value={form.percentage} onChange={handleChange} required />
           <div className="md:col-span-3 flex gap-3">
-            <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
-              {editingId ? "Update Attendance" : "Record Attendance"}
+            <button
+              className="flex-1 px-4 py-2 rounded-lg bg-ink text-white disabled:opacity-60"
+              disabled={isSaving}
+            >
+              {isSaving ? "Saving..." : (editingId ? "Update Attendance" : "Record Attendance")}
             </button>
             {editingId ? (
               <button

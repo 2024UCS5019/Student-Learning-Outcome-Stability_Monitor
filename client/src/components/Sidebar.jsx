@@ -4,6 +4,7 @@ import BrandLogo from "./BrandLogo";
 
 const links = [
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/approvals", label: "Approvals" },
   { to: "/students", label: "Students" },
   { to: "/subjects", label: "Subjects" },
   { to: "/marks", label: "Marks" },
@@ -76,6 +77,7 @@ const SidebarLinks = () => {
   const { user } = useAuth();
   const visibleLinks = links.filter((link) => {
     if (user?.role === "Student" && link.to === "/students") return false;
+    if (link.to === "/approvals" && user?.role !== "Admin") return false;
     return true;
   });
 

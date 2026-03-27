@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Student = require("../models/Student");
 const asyncHandler = require("../utils/asyncHandler");
 const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../utils/passwordPolicy");
 
@@ -25,18 +26,35 @@ const generateToken = (id) =>
     expiresIn: process.env.JWT_EXPIRES_IN || "1d"
   });
 
+const resolveStudentProfileForUser = async (user) => {
+  const email = String(user?.email || "").toLowerCase().trim();
+  if (email) {
+    const byEmail = await Student.findOne({ email }).select("_id").lean();
+    if (byEmail) return byEmail;
+  }
+
+  const name = String(user?.name || "").trim();
+  if (!name) return null;
+  return Student.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") }).select("_id").lean();
+};
+
+const normalizeLegacyStudentToViewer = async (user) => {
+  if (!user || user.role !== "Student") return user;
+  const profile = await resolveStudentProfileForUser(user);
+  if (profile) return user;
+  user.role = "Viewer";
+  await user.save();
+  return user;
+};
+
 exports.register = asyncHandler(async (req, res) => {
   const name = normalizeUsername(String(req.body.name || req.body.username || ""));
   const incomingEmail = String(req.body.email || "").trim().toLowerCase();
   const { password } = req.body;
-  const requestedRole = String(req.body.role || "");
+  const requestedRole = "Viewer";
 
-  if (!name || !password || !requestedRole) {
-    return res.status(400).json({ message: "Name, password and role are required" });
-  }
-
-  if (!["Student", "Faculty"].includes(requestedRole)) {
-    return res.status(400).json({ message: "Only Student and Faculty roles can be created" });
+  if (!name || !password) {
+    return res.status(400).json({ message: "Name and password are required" });
   }
 
   if (!isStrongPassword(password)) {
@@ -56,7 +74,7 @@ exports.register = asyncHandler(async (req, res) => {
   });
   if (exists) return res.status(400).json({ message: "User already exists" });
 
-  const user = await User.create({ name, email, password, role: requestedRole });
+  const user = await User.create({ name, email, password, role: requestedRole, isApproved: false });
 
   res.status(201).json({
     id: user._id,
@@ -81,12 +99,18 @@ exports.login = asyncHandler(async (req, res) => {
     ]
   });
 
-  if (user?.role === "Student" && user.isBlocked) {
-    return res.status(403).json({ message: "Your account is blocked" });
-  }
-
   if (!user || !(await user.matchPassword(password))) {
     return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  await normalizeLegacyStudentToViewer(user);
+
+  if (user.role !== "Admin" && user.isApproved === false) {
+    return res.status(403).json({ message: "Your account is pending admin approval." });
+  }
+
+  if (user.role === "Student" && user.isBlocked) {
+    return res.status(403).json({ message: "Your account is blocked" });
   }
 
   res.json({
@@ -102,8 +126,17 @@ exports.googleAuth = asyncHandler(async (req, res) => {
   if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'your_google_client_id_here') {
     return res.status(400).json({ message: 'Google OAuth not configured. Please set up credentials in .env file.' });
   }
-  const redirectUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.GOOGLE_REDIRECT_URI}&response_type=code&scope=profile email`;
-  res.redirect(redirectUrl);
+
+  // Force the Google account chooser every time (useful when multiple accounts are signed in).
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+    response_type: "code",
+    scope: "profile email",
+    prompt: "select_account"
+  });
+
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 });
 
 exports.googleCallback = asyncHandler(async (req, res) => {
@@ -124,7 +157,31 @@ exports.googleCallback = asyncHandler(async (req, res) => {
   if (!user) {
     return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent("Account not found. Contact Admin.")}`);
   }
+
+  await normalizeLegacyStudentToViewer(user);
+
+  if (user.role !== "Admin" && user.isApproved === false) {
+    return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent("Your account is pending admin approval.")}`);
+  }
+
+  if (user.role === "Student" && user.isBlocked) {
+    return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent("Your account is blocked")}`);
+  }
   
   const token = generateToken(user._id);
   res.redirect(`${process.env.CLIENT_URL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: user._id, name: user.name, email: user.email, role: user.role }))}`);
+});
+
+exports.approveUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  if (user.role === "Admin") {
+    return res.status(400).json({ message: "Admin accounts do not require approval" });
+  }
+
+  user.isApproved = true;
+  await user.save();
+
+  res.json({ message: "User approved" });
 });

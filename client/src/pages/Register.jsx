@@ -27,9 +27,9 @@ const Register = () => {
         name: form.name,
         email: form.email,
         password: form.password,
-        role: "Student"
+        role: "Viewer"
       });
-      setSuccess("Account created successfully. You can login now.");
+      setSuccess("Account created. Please wait for admin approval before logging in.");
       setForm({ name: "", email: "", password: "" });
     } catch (err) {
       setError(err?.response?.data?.message || "Register failed");

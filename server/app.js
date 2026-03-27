@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const connectDB = require("./config/db");
 const securityHeaders = require("./middleware/securityHeaders");
 const sanitizeRequest = require("./middleware/sanitizeRequest");
 const createRateLimiter = require("./middleware/rateLimiter");
@@ -17,7 +16,6 @@ const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
-connectDB();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 

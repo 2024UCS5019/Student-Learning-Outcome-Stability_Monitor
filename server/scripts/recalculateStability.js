@@ -1,12 +1,13 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
+const connectDB = require("../config/db");
 const Mark = require("../models/Mark");
 const Stability = require("../models/Stability");
 const { updateStabilityForStudent } = require("../services/stabilityService");
 
 const recalculateAll = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await connectDB();
     console.log("Connected to MongoDB");
 
     // Clear invalid stability records

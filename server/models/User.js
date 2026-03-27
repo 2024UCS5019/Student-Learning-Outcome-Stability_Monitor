@@ -8,7 +8,8 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     facultyCode: { type: String, unique: true, sparse: true, trim: true },
     isBlocked: { type: Boolean, default: false },
-    role: { type: String, enum: ["Admin", "Faculty", "Student"], default: "Student" }
+    isApproved: { type: Boolean, default: true },
+    role: { type: String, enum: ["Admin", "Faculty", "Student", "Viewer"], default: "Student" }
   },
   { timestamps: true }
 );

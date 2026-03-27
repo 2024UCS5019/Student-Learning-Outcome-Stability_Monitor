@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 
@@ -8,6 +8,12 @@ const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get("error");
+    if (oauthError) setError(oauthError);
+  }, []);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -150,7 +156,10 @@ const Login = () => {
         <div className="mt-3">
           <button
             type="button"
-            onClick={() => window.location.href = "http://localhost:5001/api/auth/google"}
+            onClick={() => {
+              const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+              window.location.href = `${apiUrl}/auth/google`;
+            }}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
           >
             <span className="text-base text-rose-400">G</span>

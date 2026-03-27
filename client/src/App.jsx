@@ -13,6 +13,7 @@ import Attendance from "./pages/Attendance";
 import Reports from "./pages/Reports";
 import NoteHistory from "./pages/NoteHistory";
 import NotesHistory from "./pages/NotesHistory";
+import UserApprovals from "./pages/UserApprovals";
 import NotFound from "./pages/NotFound";
 
 const AppLoader = () => (
@@ -112,6 +113,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <Reports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/approvals"
+        element={
+          <ProtectedRoute>
+            <UserApprovals />
           </ProtectedRoute>
         }
       />

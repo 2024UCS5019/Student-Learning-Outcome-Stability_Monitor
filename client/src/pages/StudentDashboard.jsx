@@ -26,8 +26,18 @@ const StudentDashboard = () => {
   const isMyDashboardRoute = !id;
 
   useEffect(() => {
+    if (!isMyDashboardRoute) return;
+    if (user?.role && user.role !== "Student") {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isMyDashboardRoute, navigate, user?.role]);
+
+  useEffect(() => {
     const load = async () => {
       try {
+        if (isMyDashboardRoute && user?.role && user.role !== "Student") {
+          return;
+        }
         const endpoint = isMyDashboardRoute
           ? "/students/me/dashboard"
           : `/students/${id}/dashboard`;
@@ -40,7 +50,7 @@ const StudentDashboard = () => {
       }
     };
     load();
-  }, [id, isMyDashboardRoute]);
+  }, [id, isMyDashboardRoute, user?.role]);
 
   const downloadReport = async () => {
     if (id) {

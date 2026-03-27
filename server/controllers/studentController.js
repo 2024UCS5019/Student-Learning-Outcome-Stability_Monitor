@@ -159,7 +159,8 @@ exports.createStudent = asyncHandler(async (req, res) => {
         name: accountUsername,
         email: accountEmail,
         password,
-        role: "Student"
+        role: "Student",
+        isApproved: true
       });
     } catch (error) {
       await Student.findByIdAndDelete(student._id);
@@ -225,7 +226,8 @@ exports.getStudents = asyncHandler(async (req, res) => {
       return {
         ...student,
         hasAccount: Boolean(linkedUser),
-        isBlocked: Boolean(linkedUser?.isBlocked)
+        isBlocked: Boolean(linkedUser?.isBlocked),
+        isApproved: linkedUser ? Boolean(linkedUser?.isApproved) : null
       };
     })
   );
