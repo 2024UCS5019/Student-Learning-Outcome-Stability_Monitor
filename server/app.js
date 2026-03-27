@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
 const securityHeaders = require("./middleware/securityHeaders");
 const sanitizeRequest = require("./middleware/sanitizeRequest");
 const createRateLimiter = require("./middleware/rateLimiter");
@@ -60,6 +62,25 @@ app.use("/api/stability", stabilityRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/notes", noteHistoryRoutes);
 app.use("/api/note-history", noteHistoryRoutes);
+
+// Serve built frontend in production (avoids serving raw /src/*.jsx which triggers MIME errors in browsers).
+// Build the client with: `cd client && npm run build` (outputs `client/dist`).
+if (process.env.SERVE_CLIENT === "true" || process.env.NODE_ENV === "production") {
+  const distDir = process.env.CLIENT_DIST_DIR
+    ? path.resolve(process.env.CLIENT_DIST_DIR)
+    : path.join(__dirname, "..", "client", "dist");
+
+  if (fs.existsSync(path.join(distDir, "index.html"))) {
+    app.use(express.static(distDir));
+
+    app.get("*", (req, res, next) => {
+      if (req.path.startsWith("/api")) return next();
+      return res.sendFile(path.join(distDir, "index.html"));
+    });
+  } else {
+    console.warn(`Client dist not found at ${distDir}. Skipping static frontend serving.`);
+  }
+}
 
 app.use(errorHandler);
 
