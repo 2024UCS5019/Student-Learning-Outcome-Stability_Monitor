@@ -53,6 +53,7 @@ const start = async () => {
 };
 
 start().catch((err) => {
-  console.error("Failed to start server:", err?.message || err);
+  console.log("Failed to start server:", err?.message || err);
+  if (err?.stack) console.log(err.stack);
   process.exit(1);
 });
