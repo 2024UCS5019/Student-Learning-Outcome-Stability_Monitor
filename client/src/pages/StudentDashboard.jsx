@@ -13,7 +13,7 @@ import {
   ResponsiveContainer
 } from "recharts";
 import AppLayout from "../components/AppLayout";
-import api from "../services/api";
+import api, { getApiBaseURL } from "../services/api";
 import useAuth from "../hooks/useAuth";
 
 const StudentDashboard = () => {
@@ -54,7 +54,7 @@ const StudentDashboard = () => {
 
   const downloadReport = async () => {
     if (id) {
-      window.open(`${import.meta.env.VITE_API_URL || "http://localhost:5001/api"}/reports/student/${id}/pdf`, "_blank");
+      window.open(`${getApiBaseURL()}/reports/student/${id}/pdf`, "_blank");
     }
   };
 

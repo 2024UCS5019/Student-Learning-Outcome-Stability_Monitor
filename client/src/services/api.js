@@ -1,10 +1,29 @@
 import axios from "axios";
 import { emitToast } from "../utils/toast";
 
+const normalizeApiBaseURL = (value) => {
+  const raw = (value || "").trim();
+  if (!raw) return raw;
+
+  try {
+    const url = new URL(raw);
+    const pathname = url.pathname || "/";
+    if (pathname === "/" || pathname === "") {
+      url.pathname = "/api";
+      return url.toString().replace(/\/$/, "");
+    }
+    return raw.replace(/\/$/, "");
+  } catch {
+    return raw.replace(/\/$/, "");
+  }
+};
+
 const fallbackBaseURL = () => `http://${window.location.hostname}:5001/api`;
 
+export const getApiBaseURL = () => normalizeApiBaseURL(import.meta.env.VITE_API_URL || fallbackBaseURL());
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || fallbackBaseURL()
+  baseURL: getApiBaseURL()
 });
 
 api.interceptors.request.use((config) => {

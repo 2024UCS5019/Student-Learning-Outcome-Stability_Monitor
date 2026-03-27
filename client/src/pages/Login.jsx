@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
+import { getApiBaseURL } from "../services/api";
 
 const Login = () => {
   const { login } = useAuth();
@@ -157,7 +158,7 @@ const Login = () => {
           <button
             type="button"
             onClick={() => {
-              const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+              const apiUrl = getApiBaseURL();
               window.location.href = `${apiUrl}/auth/google`;
             }}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
