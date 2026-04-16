@@ -38,6 +38,8 @@ const Marks = () => {
     testName: "",
     marks: ""
   });
+  const [inlineAdd, setInlineAdd] = useState(null);
+  const [inlineSaving, setInlineSaving] = useState(false);
 
   const pageSize = 10;
   const load = async () => {
@@ -160,6 +162,49 @@ const Marks = () => {
   const resetForm = () => {
     setForm({ studentId: "", subjectId: "", testName: "", marks: "" });
     setEditingId("");
+  };
+
+  const startInlineAdd = (rowKey, student, subject, testName) => {
+    setInlineAdd({
+      key: rowKey,
+      studentId: student?._id || "",
+      subjectId: subject?._id || "",
+      testName,
+      marks: ""
+    });
+    setInlineSaving(false);
+    setError("");
+  };
+
+  const cancelInlineAdd = () => {
+    setInlineAdd(null);
+    setInlineSaving(false);
+  };
+
+  const submitInlineAdd = async () => {
+    if (!inlineAdd || inlineSaving) return;
+
+    const marksValue = Number(inlineAdd.marks);
+    if (!Number.isFinite(marksValue) || marksValue < 0 || marksValue > 100) {
+      emitToast({ type: "error", title: "Invalid marks", message: "Enter a value between 0 and 100." });
+      return;
+    }
+
+    setInlineSaving(true);
+    try {
+      await api.post("/marks", {
+        studentId: inlineAdd.studentId,
+        subjectId: inlineAdd.subjectId,
+        testName: inlineAdd.testName,
+        marks: marksValue
+      });
+      emitToast({ type: "success", title: "Added", message: "Marks added successfully." });
+      cancelInlineAdd();
+      load();
+    } catch (err) {
+      setInlineSaving(false);
+      setError(err?.response?.data?.message || "Failed to add marks");
+    }
   };
 
   const addOrUpdateMark = async (e) => {
@@ -571,6 +616,7 @@ const Marks = () => {
                         <tbody className="divide-y divide-gray-200">
                           {facultyRows.map((row) => {
                             const mark = row.marksByTest?.[block.key] || null;
+                            const inlineKey = `${row.key}:${block.key}`;
                             return (
                               <tr key={`${row.key}:${block.key}`} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 text-sm">{row.student?.studentId || "N/A"}</td>
@@ -595,13 +641,57 @@ const Marks = () => {
                                       </button>
                                     </div>
                                   ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => prefillNewMark(row.student, row.subject, block.label)}
-                                      className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
-                                    >
-                                      Add
-                                    </button>
+                                    <div className="flex justify-end">
+                                      {inlineAdd?.key === inlineKey ? (
+                                        <form
+                                          className="flex items-center gap-2"
+                                          onSubmit={(e) => {
+                                            e.preventDefault();
+                                            submitInlineAdd();
+                                          }}
+                                        >
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            inputMode="numeric"
+                                            autoFocus
+                                            value={inlineAdd.marks}
+                                            onChange={(e) =>
+                                              setInlineAdd((prev) => (prev ? { ...prev, marks: e.target.value } : prev))
+                                            }
+                                            className="h-9 w-20 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none focus:ring-4 focus:ring-sky-100"
+                                            placeholder="0-100"
+                                            aria-label="Marks"
+                                            disabled={inlineSaving}
+                                            required
+                                          />
+                                          <button
+                                            type="submit"
+                                            className="btn-press h-9 rounded-lg bg-ink px-3 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+                                            disabled={inlineSaving}
+                                          >
+                                            {inlineSaving ? "Saving..." : "Save"}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={cancelInlineAdd}
+                                            className="btn-press h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+                                            disabled={inlineSaving}
+                                          >
+                                            Cancel
+                                          </button>
+                                        </form>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => startInlineAdd(inlineKey, row.student, row.subject, block.label)}
+                                          className="btn-press h-9 rounded-lg border border-slate-200 bg-white/70 px-3 text-xs font-semibold text-slate-800 shadow-sm backdrop-blur hover:bg-white"
+                                        >
+                                          Add
+                                        </button>
+                                      )}
+                                    </div>
                                   )}
                                 </td>
                               </tr>
