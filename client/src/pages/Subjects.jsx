@@ -244,8 +244,8 @@ const Subjects = () => {
   return (
     <AppLayout title="Subjects">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-6 grid md:grid-cols-3 gap-4" onSubmit={addOrUpdateSubject}>
-          {formError && <p className="md:col-span-3 text-rose-600 text-sm">{formError}</p>}
+        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" onSubmit={addOrUpdateSubject}>
+          {formError && <p className="sm:col-span-2 md:col-span-3 text-rose-600 text-sm">{formError}</p>}
           <FormInput label="Faculty Subject ID" name="subjectId" value={form.subjectId} onChange={handleChange} required />
           <FormInput label="Faculty Subject Name" name="subjectName" value={form.subjectName} onChange={handleChange} required />
           <RoleGate roles={["Admin"]}>
@@ -289,11 +289,11 @@ const Subjects = () => {
             </label>
           </RoleGate>
           {user?.role === "Faculty" ? (
-            <p className="md:col-span-3 text-xs text-slate-600">
+            <p className="sm:col-span-2 md:col-span-3 text-xs text-slate-600">
               Subjects you add are automatically assigned to your faculty account. Only Admin can add a new faculty.
             </p>
           ) : null}
-          <div className="md:col-span-3 flex gap-3">
+          <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
             <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
               {editingId ? "Update Subject" : "Add Subject"}
             </button>
@@ -301,7 +301,7 @@ const Subjects = () => {
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700"
+                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
               >
                 Cancel
               </button>

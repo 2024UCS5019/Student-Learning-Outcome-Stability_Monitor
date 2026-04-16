@@ -386,7 +386,7 @@ const Marks = () => {
   return (
     <AppLayout title="Marks">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-6 grid md:grid-cols-4 gap-4" onSubmit={addOrUpdateMark}>
+        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" onSubmit={addOrUpdateMark}>
           <div>
             <label className="block text-sm font-medium mb-1">Student Name</label>
             <select name="studentId" value={form.studentId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
@@ -416,7 +416,7 @@ const Marks = () => {
             <option value="Internal 2" />
           </datalist>
           <FormInput label="Marks" name="marks" type="number" min="0" max="100" value={form.marks} onChange={handleChange} required />
-          <div className="md:col-span-4 flex gap-3">
+          <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row gap-3">
             <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
               {editingId ? "Update Marks" : "Add Marks"}
             </button>
@@ -424,7 +424,7 @@ const Marks = () => {
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700"
+                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
               >
                 Cancel
               </button>

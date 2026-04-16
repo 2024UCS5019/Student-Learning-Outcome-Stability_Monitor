@@ -178,8 +178,8 @@ const NoteHistory = () => {
   return (
     <AppLayout title="Feedback">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-6 grid md:grid-cols-3 gap-4 mb-6" onSubmit={handleSubmit}>
-          {error ? <p className="md:col-span-3 text-sm text-rose-600">{error}</p> : null}
+        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6" onSubmit={handleSubmit}>
+          {error ? <p className="sm:col-span-2 md:col-span-3 text-sm text-rose-600">{error}</p> : null}
 
           <label className="text-sm">
             <span className="block mb-1 font-medium">Target Type</span>
@@ -245,7 +245,7 @@ const NoteHistory = () => {
             </select>
           </label>
 
-          <label className="text-sm md:col-span-3">
+          <label className="text-sm sm:col-span-2 md:col-span-3">
             <span className="block mb-1 font-medium">Note</span>
             <textarea
               rows={4}
@@ -257,15 +257,15 @@ const NoteHistory = () => {
             />
           </label>
 
-          <div className="md:col-span-3 flex gap-3">
+          <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
             <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
-              {editingId ? "Update Note" : "Save Note"}
+              {editingId ? "Update Note" : "Send Feedback"}
             </button>
             {editingId ? (
               <button
                 type="button"
                 onClick={cancelEdit}
-                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700"
+                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
               >
                 Cancel
               </button>

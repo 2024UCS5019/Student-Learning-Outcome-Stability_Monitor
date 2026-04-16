@@ -248,8 +248,8 @@ const Students = () => {
   return (
     <AppLayout title="Students">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-6 grid md:grid-cols-4 gap-4" onSubmit={addOrUpdateStudent}>
-          {formError && <p className="md:col-span-4 text-rose-600 text-sm">{formError}</p>}
+        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" onSubmit={addOrUpdateStudent}>
+          {formError && <p className="sm:col-span-2 md:col-span-4 text-rose-600 text-sm">{formError}</p>}
           <FormInput label="Student ID" name="studentId" value={form.studentId} onChange={handleChange} required />
           <FormInput label="Name" name="name" value={form.name} onChange={handleChange} required />
           <FormInput label="Email" name="email" type="email" value={form.email} onChange={handleChange} />
@@ -292,7 +292,7 @@ const Students = () => {
               </button>
             </div>
           </label>
-          <div className="md:col-span-4 flex gap-3">
+          <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row gap-3">
             <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
               {editingId ? "Update Student" : "Add Student"}
             </button>
@@ -300,7 +300,7 @@ const Students = () => {
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700"
+                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
               >
                 Cancel
               </button>

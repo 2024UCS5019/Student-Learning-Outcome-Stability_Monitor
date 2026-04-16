@@ -263,8 +263,8 @@ const Attendance = () => {
   return (
     <AppLayout title="Attendance">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-6 grid md:grid-cols-3 gap-4" onSubmit={saveAttendance}>
-          {error && <p className="md:col-span-3 text-rose-600 text-sm">{error}</p>}
+        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" onSubmit={saveAttendance}>
+          {error && <p className="sm:col-span-2 md:col-span-3 text-rose-600 text-sm">{error}</p>}
           <div>
             <label className="block text-sm font-medium mb-1">Student Name</label>
             <select name="studentId" value={form.studentId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
@@ -284,7 +284,7 @@ const Attendance = () => {
             </select>
           </div>
           <FormInput label="Percentage" name="percentage" type="number" min="0" max="100" value={form.percentage} onChange={handleChange} required />
-          <div className="md:col-span-3 flex gap-3">
+          <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
             <button
               className="flex-1 px-4 py-2 rounded-lg bg-ink text-white disabled:opacity-60"
               disabled={isSaving}
@@ -295,7 +295,7 @@ const Attendance = () => {
               <button
                 type="button"
                 onClick={cancelEdit}
-                className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 sm:flex-none"
               >
                 Cancel
               </button>

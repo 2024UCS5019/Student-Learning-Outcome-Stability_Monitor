@@ -103,7 +103,7 @@ const AppLayout = ({ children, title }) => {
     <div className="app-bg min-h-screen ambient-bg">
       <div className="flex">
         <Sidebar />
-        <div className="flex-1 min-h-screen px-6 py-8 page-animate">
+        <div className="flex-1 min-h-screen min-w-0 px-4 py-5 sm:px-6 sm:py-8 page-animate">
           <Topbar title={title} />
           <MobileNav />
           <div className="mt-6">{children}</div>

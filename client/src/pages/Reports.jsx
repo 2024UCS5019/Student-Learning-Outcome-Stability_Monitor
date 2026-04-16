@@ -55,8 +55,8 @@ const Reports = () => {
 
   return (
     <AppLayout title="Reports">
-      <div className="card-panel p-6 grid md:grid-cols-3 gap-4">
-        {error ? <p className="md:col-span-3 text-sm text-rose-600">{error}</p> : null}
+      <div className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {error ? <p className="sm:col-span-2 md:col-span-3 text-sm text-rose-600">{error}</p> : null}
         {user?.role !== "Student" && (
           <FormInput
             label="Student ID"
@@ -73,7 +73,7 @@ const Reports = () => {
 
         <button
           type="button"
-          className="px-4 py-2 rounded-lg bg-ink text-white text-center md:col-span-3"
+          className="px-4 py-2 rounded-lg bg-ink text-white text-center sm:col-span-2 md:col-span-3"
           onClick={downloadStudentReport}
         >
           Download Student Report (PDF)
