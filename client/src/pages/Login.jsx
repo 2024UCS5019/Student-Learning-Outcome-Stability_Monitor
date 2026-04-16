@@ -8,6 +8,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [remember, setRemember] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -21,11 +22,14 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     setError("");
+    setSubmitting(true);
     try {
       await login(form.email, form.password);
       navigate("/dashboard");
     } catch (err) {
+      setSubmitting(false);
       if (!err?.response) {
         setError("Cannot connect to server. Please ensure backend is running on port 5001.");
         return;
@@ -89,6 +93,7 @@ const Login = () => {
                 spellCheck={false}
                 className="w-full bg-transparent text-base text-slate-700 placeholder:text-slate-500 outline-none"
                 required
+                disabled={submitting}
               />
             </div>
           </label>
@@ -128,6 +133,7 @@ const Login = () => {
                 autoComplete="current-password"
                 className="w-full bg-transparent text-base text-slate-700 placeholder:text-slate-500 outline-none"
                 required
+                disabled={submitting}
               />
             </div>
           </label>
@@ -142,8 +148,19 @@ const Login = () => {
             Remember me
           </label>
 
-          <button className="mt-1 w-full rounded-xl bg-[#0b0f14] py-2.5 text-base font-semibold text-white transition hover:bg-[#11161d]">
-            Login
+          <button
+            type="submit"
+            className="btn-press mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0b0f14] py-2.5 text-base font-semibold text-white transition hover:bg-[#11161d] disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={submitting}
+            aria-busy={submitting}
+          >
+            {submitting ? (
+              <span
+                className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                aria-hidden="true"
+              />
+            ) : null}
+            {submitting ? "Logging in..." : "Login"}
           </button>
         </form>
 

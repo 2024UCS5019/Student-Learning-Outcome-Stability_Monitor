@@ -120,12 +120,12 @@ body {
   will-change: transform;
 }
 
-.app-bg button:hover {
+.app-bg button:not(:disabled):hover {
   transform: translateY(-1px);
   filter: brightness(0.96);
 }
 
-.app-bg button:active {
+.app-bg button:not(:disabled):active {
   transform: translateY(0);
 }
 
@@ -166,7 +166,7 @@ body {
   transform: rotate(-45deg);
 }
 
-.app-bg button:not([class*="bg-"]):hover {
+.app-bg button:not(:disabled):not([class*="bg-"]):hover {
   background-color: var(--hover-color);
 }
 
@@ -176,6 +176,15 @@ body {
 
 .app-bg button:hover .arrow::before {
   right: 0;
+}
+
+/* Extra “press” feedback for key actions */
+.app-bg button.btn-press:not(:disabled):hover {
+  transform: translateY(-1px) scale(1.01);
+}
+
+.app-bg button.btn-press:not(:disabled):active {
+  transform: translateY(0) scale(0.98);
 }
 
 .app-bg input,

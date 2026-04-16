@@ -67,10 +67,31 @@ const UserApprovals = () => {
           <button
             type="button"
             onClick={load}
-            className="px-3 py-2 rounded-lg text-sm border border-slate-200 text-slate-700 hover:bg-slate-50"
+            className="btn-press inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
             disabled={loading}
+            aria-busy={loading}
           >
-            Refresh
+            <svg
+              className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M20 12a8 8 0 1 1-2.34-5.66"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+              <path
+                d="M20 4v6h-6"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {loading ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
@@ -127,4 +148,3 @@ const UserApprovals = () => {
 };
 
 export default UserApprovals;
-
