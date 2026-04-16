@@ -27,17 +27,20 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  let token = localStorage.getItem("token");
+  let token = sessionStorage.getItem("token") || localStorage.getItem("token");
   if (!token) {
-    try {
-      const rawUser = localStorage.getItem("user");
-      const parsedUser = rawUser ? JSON.parse(rawUser) : null;
-      token = parsedUser?.token || "";
-      if (token) {
-        localStorage.setItem("token", token);
+    for (const store of [sessionStorage, localStorage]) {
+      try {
+        const rawUser = store.getItem("user");
+        const parsedUser = rawUser ? JSON.parse(rawUser) : null;
+        token = parsedUser?.token || "";
+        if (token) {
+          store.setItem("token", token);
+          break;
+        }
+      } catch {
+        token = "";
       }
-    } catch {
-      token = "";
     }
   }
   if (token) {
@@ -99,6 +102,8 @@ api.interceptors.response.use(
     if (status === 401 && !url.includes("/auth/login") && !url.includes("/auth/register")) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       if (typeof window !== "undefined" && window.location.pathname !== "/login") {
         window.location.replace("/login");
       }

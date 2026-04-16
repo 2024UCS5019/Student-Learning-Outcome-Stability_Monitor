@@ -10,8 +10,12 @@ const AuthCallback = () => {
     const user = params.get("user");
 
     if (token && user) {
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", user);
+      // Store OAuth session per-tab by default to avoid auto-login across multiple tabs.
+      // (Users can still use "Remember me" on the email/password login.)
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      sessionStorage.setItem("token", token);
+      sessionStorage.setItem("user", user);
       window.location.href = "/dashboard";
     } else {
       navigate("/login");

@@ -3,33 +3,49 @@ import api from "../services/api";
 
 export const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
+const clearAuthStorage = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("user");
+};
+
+const readStoredAuth = () => {
+  const sources = [sessionStorage, localStorage];
+  for (const store of sources) {
     try {
-      const storedUserRaw = localStorage.getItem("user");
-      if (!storedUserRaw) return null;
+      const storedUserRaw = store.getItem("user");
+      const token = store.getItem("token");
+      if (!storedUserRaw) continue;
 
       const parsedUser = JSON.parse(storedUserRaw);
-      const token = localStorage.getItem("token");
       const fallbackToken = parsedUser?.token;
+      const finalToken = token || fallbackToken;
 
+      if (!finalToken) continue;
       if (!token && fallbackToken) {
-        localStorage.setItem("token", fallbackToken);
+        store.setItem("token", fallbackToken);
       }
 
-      if (!token && !fallbackToken) return null;
-      return parsedUser;
+      return { user: parsedUser, token: finalToken, store };
     } catch {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-      return null;
+      // If corrupted, clear and continue to the next storage.
+      store.removeItem("user");
+      store.removeItem("token");
     }
-  });
+  }
+  return { user: null, token: "", store: null };
+};
 
-  const login = async (email, password) => {
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(() => readStoredAuth().user);
+
+  const login = async (email, password, remember = false) => {
     const { data } = await api.post("/auth/login", { email, password });
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data));
+    clearAuthStorage();
+    const store = remember ? localStorage : sessionStorage;
+    store.setItem("token", data.token);
+    store.setItem("user", JSON.stringify(data));
     setUser(data);
   };
 
@@ -39,8 +55,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearAuthStorage();
     setUser(null);
   };
 

@@ -26,7 +26,7 @@ const Login = () => {
     setError("");
     setSubmitting(true);
     try {
-      await login(form.email, form.password);
+      await login(form.email, form.password, remember);
       navigate("/dashboard");
     } catch (err) {
       setSubmitting(false);
