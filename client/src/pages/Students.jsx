@@ -10,6 +10,7 @@ import useAuth from "../hooks/useAuth";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import api from "../services/api";
 import { emitToast } from "../utils/toast";
+import Modal from "../components/Modal";
 
 const defaultSocketUrl = () => {
   if (typeof window === "undefined") return "http://localhost:5001";
@@ -245,68 +246,78 @@ const Students = () => {
   const blockedCount = students.filter((s) => s.hasAccount && s.isBlocked).length;
   const noAccountCount = students.filter((s) => !s.hasAccount).length;
 
+  const renderStudentForm = (wrapperClassName) => (
+    <form className={wrapperClassName} onSubmit={addOrUpdateStudent}>
+      {formError && <p className="sm:col-span-2 md:col-span-4 text-rose-600 text-sm">{formError}</p>}
+      <FormInput label="Student ID" name="studentId" value={form.studentId} onChange={handleChange} required />
+      <FormInput label="Name" name="name" value={form.name} onChange={handleChange} required />
+      <FormInput label="Email" name="email" type="email" value={form.email} onChange={handleChange} />
+      <FormInput label="Department" name="department" value={form.department} onChange={handleChange} required />
+      <FormInput label="Year" name="year" value={form.year} onChange={handleChange} required />
+      <label className="flex flex-col gap-2 text-sm">
+        <span className="text-slate-700">Password</span>
+        <div className="relative">
+          <input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            value={form.password}
+            onChange={handleChange}
+            minLength={8}
+            placeholder="Optional (Admin only)"
+            disabled={user?.role !== "Admin"}
+            className="w-full px-3 py-2 pr-16 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-400 disabled:bg-slate-100 disabled:text-slate-500"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            disabled={user?.role !== "Admin"}
+            className="absolute inset-y-0 right-2 my-auto h-7 w-8 flex items-center justify-center text-xs rounded border border-slate-200 bg-white text-slate-700 disabled:opacity-50"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            title={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? (
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3l18 18" />
+                <path d="M10.6 10.6a3 3 0 0 0 4.2 4.2" />
+                <path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c5 0 9.3 3.1 11 8-1 2.7-2.9 4.8-5.2 6.1" />
+                <path d="M6.6 6.6C4.6 8 3.1 9.9 2 12c1.7 4.9 6 8 10 8 1.2 0 2.4-.2 3.5-.6" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 12s3.5-8 10-8 10 8 10 8-3.5 8-10 8S2 12 2 12z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </label>
+      <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row gap-3">
+        <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
+          {editingId ? "Update Student" : "Add Student"}
+        </button>
+        {editingId && (
+          <button
+            type="button"
+            onClick={resetForm}
+            className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+
   return (
     <AppLayout title="Students">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" onSubmit={addOrUpdateStudent}>
-          {formError && <p className="sm:col-span-2 md:col-span-4 text-rose-600 text-sm">{formError}</p>}
-          <FormInput label="Student ID" name="studentId" value={form.studentId} onChange={handleChange} required />
-          <FormInput label="Name" name="name" value={form.name} onChange={handleChange} required />
-          <FormInput label="Email" name="email" type="email" value={form.email} onChange={handleChange} />
-          <FormInput label="Department" name="department" value={form.department} onChange={handleChange} required />
-          <FormInput label="Year" name="year" value={form.year} onChange={handleChange} required />
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-700">Password</span>
-            <div className="relative">
-              <input
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={form.password}
-                onChange={handleChange}
-                minLength={8}
-                placeholder="Optional (Admin only)"
-                disabled={user?.role !== "Admin"}
-                className="w-full px-3 py-2 pr-16 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-400 disabled:bg-slate-100 disabled:text-slate-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                disabled={user?.role !== "Admin"}
-                className="absolute inset-y-0 right-2 my-auto h-7 w-8 flex items-center justify-center text-xs rounded border border-slate-200 bg-white text-slate-700 disabled:opacity-50"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                title={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 3l18 18" />
-                    <path d="M10.6 10.6a3 3 0 0 0 4.2 4.2" />
-                    <path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c5 0 9.3 3.1 11 8-1 2.7-2.9 4.8-5.2 6.1" />
-                    <path d="M6.6 6.6C4.6 8 3.1 9.9 2 12c1.7 4.9 6 8 10 8 1.2 0 2.4-.2 3.5-.6" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 12s3.5-8 10-8 10 8 10 8-3.5 8-10 8S2 12 2 12z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </label>
-          <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row gap-3">
-            <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
-              {editingId ? "Update Student" : "Add Student"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
+        {editingId ? (
+          <Modal open={Boolean(editingId)} title="Edit Student" onClose={resetForm}>
+            {renderStudentForm("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4")}
+          </Modal>
+        ) : (
+          renderStudentForm("card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4")
+        )}
       </RoleGate>
       {!canManageStudents && (
         <div className="card-panel p-4 text-sm text-amber-700">

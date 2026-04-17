@@ -7,6 +7,7 @@ import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import { emitToast } from "../utils/toast";
+import Modal from "../components/Modal";
 
 const defaultSocketUrl = () => {
   if (typeof window === "undefined") return "http://localhost:5001";
@@ -260,48 +261,58 @@ const Attendance = () => {
     return Number(a.percentage) < Number(worst.percentage) ? a : worst;
   }, null);
 
+  const renderAttendanceForm = (wrapperClassName) => (
+    <form className={wrapperClassName} onSubmit={saveAttendance}>
+      {error && <p className="sm:col-span-2 md:col-span-3 text-rose-600 text-sm">{error}</p>}
+      <div>
+        <label className="block text-sm font-medium mb-1">Student Name</label>
+        <select name="studentId" value={form.studentId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
+          <option value="">Select Student Name</option>
+          {[...students]
+            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+            .map((s) => <option key={s._id} value={s._id}>{s.name} ({s.studentId})</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Subject Name</label>
+        <select name="subjectId" value={form.subjectId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
+          <option value="">Select Subject Name</option>
+          {[...subjects]
+            .sort((a, b) => (a.subjectName || "").localeCompare(b.subjectName || ""))
+            .map((s) => <option key={s._id} value={s._id}>{s.subjectName} ({s.subjectId})</option>)}
+        </select>
+      </div>
+      <FormInput label="Percentage" name="percentage" type="number" min="0" max="100" value={form.percentage} onChange={handleChange} required />
+      <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
+        <button
+          className="flex-1 px-4 py-2 rounded-lg bg-ink text-white disabled:opacity-60"
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : (editingId ? "Update Attendance" : "Record Attendance")}
+        </button>
+        {editingId ? (
+          <button
+            type="button"
+            onClick={cancelEdit}
+            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 sm:flex-none"
+          >
+            Cancel
+          </button>
+        ) : null}
+      </div>
+    </form>
+  );
+
   return (
     <AppLayout title="Attendance">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" onSubmit={saveAttendance}>
-          {error && <p className="sm:col-span-2 md:col-span-3 text-rose-600 text-sm">{error}</p>}
-          <div>
-            <label className="block text-sm font-medium mb-1">Student Name</label>
-            <select name="studentId" value={form.studentId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
-              <option value="">Select Student Name</option>
-              {[...students]
-                .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-                .map(s => <option key={s._id} value={s._id}>{s.name} ({s.studentId})</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Subject Name</label>
-            <select name="subjectId" value={form.subjectId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
-              <option value="">Select Subject Name</option>
-              {[...subjects]
-                .sort((a, b) => (a.subjectName || "").localeCompare(b.subjectName || ""))
-                .map(s => <option key={s._id} value={s._id}>{s.subjectName} ({s.subjectId})</option>)}
-            </select>
-          </div>
-          <FormInput label="Percentage" name="percentage" type="number" min="0" max="100" value={form.percentage} onChange={handleChange} required />
-          <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
-            <button
-              className="flex-1 px-4 py-2 rounded-lg bg-ink text-white disabled:opacity-60"
-              disabled={isSaving}
-            >
-              {isSaving ? "Saving..." : (editingId ? "Update Attendance" : "Record Attendance")}
-            </button>
-            {editingId ? (
-              <button
-                type="button"
-                onClick={cancelEdit}
-                className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 sm:flex-none"
-              >
-                Cancel
-              </button>
-            ) : null}
-          </div>
-        </form>
+        {editingId ? (
+          <Modal open={Boolean(editingId)} title="Edit Attendance" onClose={cancelEdit} size="sm">
+            {renderAttendanceForm("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4")}
+          </Modal>
+        ) : (
+          renderAttendanceForm("card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4")
+        )}
       </RoleGate>
 
       <div className="mt-6">

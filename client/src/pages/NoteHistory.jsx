@@ -5,6 +5,7 @@ import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import { emitToast } from "../utils/toast";
+import Modal from "../components/Modal";
 
 const NoteHistory = () => {
   const { user } = useAuth();
@@ -186,103 +187,115 @@ const NoteHistory = () => {
     }
   };
 
+  const renderFeedbackForm = (wrapperClassName) => (
+    <form className={wrapperClassName} onSubmit={handleSubmit}>
+      {error ? <p className="sm:col-span-2 md:col-span-3 text-sm text-rose-600">{error}</p> : null}
+
+      <label className="text-sm">
+        <span className="block mb-1 font-medium">Target Type</span>
+        <select
+          value={form.targetType}
+          onChange={(e) => setForm({ ...form, targetType: e.target.value })}
+          className="w-full px-3 py-2 border rounded-lg"
+        >
+          <option value="Student">Student</option>
+          <option value="Staff">Staff</option>
+        </select>
+      </label>
+
+      <label className="text-sm">
+        <span className="block mb-1 font-medium">
+          {form.targetType === "Student" ? "Student" : "Staff"}
+        </span>
+        <select
+          value={form.targetId}
+          onChange={(e) => setForm({ ...form, targetId: e.target.value })}
+          className="w-full px-3 py-2 border rounded-lg"
+          required
+        >
+          <option value="">Select</option>
+          {currentTargets.map((item) => (
+            <option key={item._id} value={item._id}>
+              {item.name} {item.email ? `(${item.email})` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {form.targetType === "Student" ? (
+        <label className="text-sm">
+          <span className="block mb-1 font-medium">Subject</span>
+          <select
+            value={form.subjectId}
+            onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
+            className="w-full px-3 py-2 border rounded-lg"
+            required
+          >
+            <option value="">Select</option>
+            {subjects.map((item) => (
+              <option key={item._id} value={item._id}>
+                {item.subjectName} ({item.subjectId})
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
+      <label className="text-sm">
+        <span className="block mb-1 font-medium">Status</span>
+        <select
+          value={form.status}
+          onChange={(e) => setForm({ ...form, status: e.target.value })}
+          className="w-full px-3 py-2 border rounded-lg"
+          required
+        >
+          <option value="Great">Great</option>
+          <option value="Average">Average</option>
+          <option value="Poor">Poor</option>
+        </select>
+      </label>
+
+      <label className="text-sm sm:col-span-2 md:col-span-3">
+        <span className="block mb-1 font-medium">Note</span>
+        <textarea
+          rows={4}
+          value={form.note}
+          onChange={(e) => setForm({ ...form, note: e.target.value })}
+          className="w-full px-3 py-2 border rounded-lg"
+          placeholder="Write student/staff note..."
+          required
+        />
+      </label>
+
+      <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
+        <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
+          {editingId ? "Update Note" : "Send Feedback"}
+        </button>
+        {editingId ? (
+          <button
+            type="button"
+            onClick={cancelEdit}
+            className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
+          >
+            Cancel
+          </button>
+        ) : null}
+      </div>
+    </form>
+  );
+
   return (
     <AppLayout title="Feedback">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6" onSubmit={handleSubmit}>
-          {error ? <p className="sm:col-span-2 md:col-span-3 text-sm text-rose-600">{error}</p> : null}
-
-          <label className="text-sm">
-            <span className="block mb-1 font-medium">Target Type</span>
-            <select
-              value={form.targetType}
-              onChange={(e) => setForm({ ...form, targetType: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg"
-            >
-              <option value="Student">Student</option>
-              <option value="Staff">Staff</option>
-            </select>
-          </label>
-
-          <label className="text-sm">
-            <span className="block mb-1 font-medium">
-              {form.targetType === "Student" ? "Student" : "Staff"}
-            </span>
-            <select
-              value={form.targetId}
-              onChange={(e) => setForm({ ...form, targetId: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg"
-              required
-            >
-              <option value="">Select</option>
-              {currentTargets.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.name} {item.email ? `(${item.email})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {form.targetType === "Student" ? (
-            <label className="text-sm">
-              <span className="block mb-1 font-medium">Subject</span>
-              <select
-                value={form.subjectId}
-                onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg"
-                required
-              >
-                <option value="">Select</option>
-                {subjects.map((item) => (
-                  <option key={item._id} value={item._id}>
-                    {item.subjectName} ({item.subjectId})
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          <label className="text-sm">
-            <span className="block mb-1 font-medium">Status</span>
-            <select
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg"
-              required
-            >
-              <option value="Great">Great</option>
-              <option value="Average">Average</option>
-              <option value="Poor">Poor</option>
-            </select>
-          </label>
-
-          <label className="text-sm sm:col-span-2 md:col-span-3">
-            <span className="block mb-1 font-medium">Note</span>
-            <textarea
-              rows={4}
-              value={form.note}
-              onChange={(e) => setForm({ ...form, note: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg"
-              placeholder="Write student/staff note..."
-              required
-            />
-          </label>
-
-          <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
-            <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
-              {editingId ? "Update Note" : "Send Feedback"}
-            </button>
-            {editingId ? (
-              <button
-                type="button"
-                onClick={cancelEdit}
-                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
-              >
-                Cancel
-              </button>
-            ) : null}
+        {editingId ? (
+          <Modal open={Boolean(editingId)} title="Edit Feedback" onClose={cancelEdit}>
+            {renderFeedbackForm("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4")}
+          </Modal>
+        ) : (
+          <div className="mb-6">
+            {renderFeedbackForm("card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4")}
           </div>
-        </form>
+        )}
       </RoleGate>
 
       <div className="card-panel p-4">

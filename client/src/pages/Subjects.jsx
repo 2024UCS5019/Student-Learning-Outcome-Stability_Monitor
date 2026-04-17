@@ -8,6 +8,7 @@ import useAuth from "../hooks/useAuth";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import api from "../services/api";
 import { emitToast } from "../utils/toast";
+import Modal from "../components/Modal";
 
 const defaultSocketUrl = () => {
   if (typeof window === "undefined") return "http://localhost:5001";
@@ -241,73 +242,83 @@ const Subjects = () => {
 
   const missingFacultyEmail = subjects.filter((s) => !s.facultyId?.email).length;
 
+  const renderSubjectForm = (wrapperClassName) => (
+    <form className={wrapperClassName} onSubmit={addOrUpdateSubject}>
+      {formError && <p className="sm:col-span-2 md:col-span-3 text-rose-600 text-sm">{formError}</p>}
+      <FormInput label="Faculty Subject ID" name="subjectId" value={form.subjectId} onChange={handleChange} required />
+      <FormInput label="Faculty Subject Name" name="subjectName" value={form.subjectName} onChange={handleChange} required />
+      <RoleGate roles={["Admin"]}>
+        <FormInput label="Faculty ID" name="facultyCode" value={form.facultyCode} onChange={handleChange} />
+        <FormInput label="Faculty Name" name="facultyName" value={form.facultyName} onChange={handleChange} required />
+        <FormInput label="Faculty Email" name="facultyEmail" type="email" value={form.facultyEmail} onChange={handleChange} required />
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="text-slate-700">Password</span>
+          <div className="relative">
+            <input
+              name="facultyPassword"
+              type={showFacultyPassword ? "text" : "password"}
+              value={form.facultyPassword}
+              onChange={handleChange}
+              placeholder="Required for new faculty"
+              className="w-full px-3 py-2 pr-16 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowFacultyPassword((prev) => !prev)}
+              className="absolute inset-y-0 right-2 my-auto h-7 w-8 flex items-center justify-center text-xs rounded border border-slate-200 bg-white"
+              style={{ color: "#111827" }}
+              aria-label={showFacultyPassword ? "Hide password" : "Show password"}
+              title={showFacultyPassword ? "Hide password" : "Show password"}
+            >
+              {showFacultyPassword ? (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3l18 18" />
+                  <path d="M10.6 10.6a3 3 0 0 0 4.2 4.2" />
+                  <path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c5 0 9.3 3.1 11 8-1 2.7-2.9 4.8-5.2 6.1" />
+                  <path d="M6.6 6.6C4.6 8 3.1 9.9 2 12c1.7 4.9 6 8 10 8 1.2 0 2.4-.2 3.5-.6" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 12s3.5-8 10-8 10 8 10 8-3.5 8-10 8S2 12 2 12z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </label>
+      </RoleGate>
+      {user?.role === "Faculty" ? (
+        <p className="sm:col-span-2 md:col-span-3 text-xs text-slate-600">
+          Subjects you add are automatically assigned to your faculty account. Only Admin can add a new faculty.
+        </p>
+      ) : null}
+      <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
+        <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
+          {editingId ? "Update Subject" : "Add Subject"}
+        </button>
+        {editingId && (
+          <button
+            type="button"
+            onClick={resetForm}
+            className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+
   return (
     <AppLayout title="Subjects">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" onSubmit={addOrUpdateSubject}>
-          {formError && <p className="sm:col-span-2 md:col-span-3 text-rose-600 text-sm">{formError}</p>}
-          <FormInput label="Faculty Subject ID" name="subjectId" value={form.subjectId} onChange={handleChange} required />
-          <FormInput label="Faculty Subject Name" name="subjectName" value={form.subjectName} onChange={handleChange} required />
-          <RoleGate roles={["Admin"]}>
-            <FormInput label="Faculty ID" name="facultyCode" value={form.facultyCode} onChange={handleChange} />
-            <FormInput label="Faculty Name" name="facultyName" value={form.facultyName} onChange={handleChange} required />
-            <FormInput label="Faculty Email" name="facultyEmail" type="email" value={form.facultyEmail} onChange={handleChange} required />
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">Password</span>
-              <div className="relative">
-                <input
-                  name="facultyPassword"
-                  type={showFacultyPassword ? "text" : "password"}
-                  value={form.facultyPassword}
-                  onChange={handleChange}
-                  placeholder="Required for new faculty"
-                  className="w-full px-3 py-2 pr-16 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowFacultyPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-2 my-auto h-7 w-8 flex items-center justify-center text-xs rounded border border-slate-200 bg-white"
-                  style={{ color: "#111827" }}
-                  aria-label={showFacultyPassword ? "Hide password" : "Show password"}
-                  title={showFacultyPassword ? "Hide password" : "Show password"}
-                >
-                  {showFacultyPassword ? (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 3l18 18" />
-                      <path d="M10.6 10.6a3 3 0 0 0 4.2 4.2" />
-                      <path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c5 0 9.3 3.1 11 8-1 2.7-2.9 4.8-5.2 6.1" />
-                      <path d="M6.6 6.6C4.6 8 3.1 9.9 2 12c1.7 4.9 6 8 10 8 1.2 0 2.4-.2 3.5-.6" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M2 12s3.5-8 10-8 10 8 10 8-3.5 8-10 8S2 12 2 12z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </label>
-          </RoleGate>
-          {user?.role === "Faculty" ? (
-            <p className="sm:col-span-2 md:col-span-3 text-xs text-slate-600">
-              Subjects you add are automatically assigned to your faculty account. Only Admin can add a new faculty.
-            </p>
-          ) : null}
-          <div className="sm:col-span-2 md:col-span-3 flex flex-col sm:flex-row gap-3">
-            <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
-              {editingId ? "Update Subject" : "Add Subject"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
+        {editingId ? (
+          <Modal open={Boolean(editingId)} title="Edit Subject" onClose={resetForm}>
+            {renderSubjectForm("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4")}
+          </Modal>
+        ) : (
+          renderSubjectForm("card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4")
+        )}
       </RoleGate>
 
       <div className="mt-6">

@@ -7,6 +7,7 @@ import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import { emitToast } from "../utils/toast";
+import Modal from "../components/Modal";
 
 const defaultSocketUrl = () => {
   if (typeof window === "undefined") return "http://localhost:5001";
@@ -428,54 +429,64 @@ const Marks = () => {
     setError("");
   };
 
+  const renderMarksForm = (wrapperClassName) => (
+    <form className={wrapperClassName} onSubmit={addOrUpdateMark}>
+      <div>
+        <label className="block text-sm font-medium mb-1">Student Name</label>
+        <select name="studentId" value={form.studentId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
+          <option value="">Select Student Name</option>
+          {students.map((s) => <option key={s._id} value={s._id}>{s.name} ({s.studentId})</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Subject Name</label>
+        <select name="subjectId" value={form.subjectId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
+          <option value="">Select Subject Name</option>
+          {subjects.map((s) => <option key={s._id} value={s._id}>{s.subjectName} ({s.subjectId})</option>)}
+        </select>
+      </div>
+      <FormInput
+        label="Test Name"
+        name="testName"
+        value={form.testName}
+        onChange={handleChange}
+        required
+        list="mark-test-names"
+        placeholder="Test name"
+        className="bg-white backdrop-blur-0 focus:ring-0 focus:border-slate-300"
+      />
+      <datalist id="mark-test-names">
+        <option value="Internal 1" />
+        <option value="Internal 2" />
+      </datalist>
+      <FormInput label="Marks" name="marks" type="number" min="0" max="100" value={form.marks} onChange={handleChange} required />
+      <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row gap-3">
+        <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
+          {editingId ? "Update Marks" : "Add Marks"}
+        </button>
+        {editingId && (
+          <button
+            type="button"
+            onClick={resetForm}
+            className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+
   return (
     <AppLayout title="Marks">
       <RoleGate roles={["Admin", "Faculty"]}>
-        <form className="card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" onSubmit={addOrUpdateMark}>
-          <div>
-            <label className="block text-sm font-medium mb-1">Student Name</label>
-            <select name="studentId" value={form.studentId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
-              <option value="">Select Student Name</option>
-              {students.map(s => <option key={s._id} value={s._id}>{s.name} ({s.studentId})</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Subject Name</label>
-            <select name="subjectId" value={form.subjectId} onChange={handleChange} required className="w-full px-3 py-2 border rounded-lg">
-              <option value="">Select Subject Name</option>
-              {subjects.map(s => <option key={s._id} value={s._id}>{s.subjectName} ({s.subjectId})</option>)}
-            </select>
-          </div>
-          <FormInput
-            label="Test Name"
-            name="testName"
-            value={form.testName}
-            onChange={handleChange}
-            required
-            list="mark-test-names"
-            placeholder="Test name"
-            className="bg-white backdrop-blur-0 focus:ring-0 focus:border-slate-300"
-          />
-          <datalist id="mark-test-names">
-            <option value="Internal 1" />
-            <option value="Internal 2" />
-          </datalist>
-          <FormInput label="Marks" name="marks" type="number" min="0" max="100" value={form.marks} onChange={handleChange} required />
-          <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row gap-3">
-            <button className="flex-1 px-4 py-2 rounded-lg bg-ink text-white">
-              {editingId ? "Update Marks" : "Add Marks"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 sm:flex-none"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
+        {editingId ? (
+          <Modal open={Boolean(editingId)} title="Edit Marks" onClose={resetForm}>
+            {renderMarksForm("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4")}
+          </Modal>
+        ) : (
+          renderMarksForm("card-panel p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4")
+        )}
       </RoleGate>
 
       <div className="mt-6">
