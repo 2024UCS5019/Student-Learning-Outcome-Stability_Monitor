@@ -29,6 +29,15 @@ const parseAllowedOrigins = () =>
     .map(parseOrigin)
     .filter(Boolean);
 
+const getRequestProtocol = (req) => {
+  const forwarded = String(req?.get?.("x-forwarded-proto") || "")
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+  if (forwarded === "https" || forwarded === "http") return forwarded;
+  return String(req?.protocol || "http").toLowerCase();
+};
+
 const isOriginAllowed = (origin) => {
   const normalized = parseOrigin(origin);
   if (!normalized) return false;
@@ -71,12 +80,15 @@ const inferClientUrl = (req) => {
 
 const inferGoogleRedirectUri = (req) => {
   const envRedirect = String(process.env.GOOGLE_REDIRECT_URI || "").trim();
-  const computed = `${req.protocol}://${req.get("host")}/api/auth/google/callback`;
+  const requestHost = String(req.hostname || "").trim().toLowerCase();
+  const hostHeader = String(req.get("host") || "").trim();
+  const proto = getRequestProtocol(req);
+  const computedProto = isLocalHostname(requestHost) ? proto : "https";
+  const computed = `${computedProto}://${hostHeader}/api/auth/google/callback`;
   if (!envRedirect) return computed;
 
   try {
     const envHost = new URL(envRedirect).hostname;
-    const requestHost = String(req.hostname || "").trim().toLowerCase();
     if (!isLocalHostname(requestHost) && isLocalHostname(envHost)) return computed;
   } catch {
     // ignore
