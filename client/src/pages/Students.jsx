@@ -388,7 +388,7 @@ const Students = () => {
             </button>
           </div>
         </RoleGate>
-        <div className="card-panel overflow-x-auto max-h-96 overflow-y-auto">
+        <div className="card-panel overflow-x-auto" style={{maxHeight: '400px', overflowY: 'scroll'}}>
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
