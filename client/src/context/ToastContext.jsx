@@ -23,7 +23,7 @@ const ToastViewport = ({ toasts, dismiss }) => {
             aria-label="Dismiss"
             title="Dismiss"
           >
-            ×
+            {"\u00D7"}
           </button>
         </div>
       ))}
