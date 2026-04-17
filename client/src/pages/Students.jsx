@@ -388,7 +388,7 @@ const Students = () => {
             </button>
           </div>
         </RoleGate>
-        <div className="card-panel overflow-hidden">
+        <div className="card-panel overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
