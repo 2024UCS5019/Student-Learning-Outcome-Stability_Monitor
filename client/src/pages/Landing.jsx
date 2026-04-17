@@ -125,9 +125,9 @@ const PreviewMock = ({ kind }) => {
           </div>
           <div className="mt-3 grid gap-3">
             {[
-              { name: "Abi S.", att: "92%", avg: "81" },
-              { name: "Mathi R.", att: "86%", avg: "76" },
-              { name: "Kavi P.", att: "78%", avg: "69" }
+              { name: "Student 01", att: "92%", avg: "81" },
+              { name: "Student 02", att: "86%", avg: "76" },
+              { name: "Student 03", att: "78%", avg: "69" }
             ].map((row) => (
               <div
                 key={row.name}
@@ -297,7 +297,7 @@ const Landing = () => {
         <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold tracking-[0.34em] text-slate-600">
-              STUDENT LEARNING OUTCOME STABILITY MONITOR
+              OUTCOME ATTAINMENT & STABILITY DASHBOARD
             </div>
             <div className="mt-2 text-sm text-slate-600">
               Outcome attainment tracking, stability insights, and academic governance in one platform.
@@ -358,8 +358,8 @@ const Landing = () => {
                 Outcome attainment, stability insights, and academic operations in one polished system.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
-                Student Learning Outcome Stability Monitor brings marks, attendance, subjects, and approvals into one coherent workflow. It helps
-                teams track attainment, understand stability drift, and present evidence-ready analytics during reviews.
+                Bring marks, attendance, subjects, and approvals into one coherent workflow. Track attainment, understand stability drift, and
+                present evidence-ready analytics during reviews.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -427,13 +427,13 @@ const Landing = () => {
                   <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-4 text-sm text-slate-800">
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
                       <span>
-                        <span className="text-slate-600">Admin:</span> admin@gmail.com
+                        <span className="text-slate-600">Admin:</span> admin@example.com
                       </span>
                       <span>
-                        <span className="text-slate-600">Faculty:</span> mathi@gmail.com
+                        <span className="text-slate-600">Faculty:</span> faculty@example.com
                       </span>
                       <span>
-                        <span className="text-slate-600">Student:</span> abi@gmail.com
+                        <span className="text-slate-600">Student:</span> student@example.com
                       </span>
                     </div>
                   </div>
@@ -732,7 +732,7 @@ const Landing = () => {
                       <div className="rounded-[2rem] border border-slate-200/70 bg-white/70 p-6 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]">
                         <div className="flex items-center justify-between">
                           <div className="text-xs font-semibold tracking-[0.3em] text-slate-600 uppercase">
-                            SLO Monitor
+                            Analytics
                           </div>
                           <div className="text-xs font-semibold text-slate-600">Analytics Overview</div>
                         </div>
@@ -748,7 +748,7 @@ const Landing = () => {
           <footer className="mt-20 border-t border-slate-200/70 py-10">
             <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <span className="font-semibold text-slate-900">Student Learning Outcome Stability Monitor</span>{" "}
+                <span className="font-semibold text-slate-900">Outcome Attainment & Stability Dashboard</span>{" "}
                 <span className="text-slate-500">— landing experience</span>
               </div>
               <div className="flex flex-wrap items-center gap-4">
