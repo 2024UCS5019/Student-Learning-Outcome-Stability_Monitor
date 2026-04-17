@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -15,6 +15,7 @@ import NoteHistory from "./pages/NoteHistory";
 import NotesHistory from "./pages/NotesHistory";
 import UserApprovals from "./pages/UserApprovals";
 import NotFound from "./pages/NotFound";
+import Landing from "./pages/Landing";
 
 const AppLoader = () => (
   <div className="app-loading-screen">
@@ -47,7 +48,7 @@ const App = () => {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" />} />
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
