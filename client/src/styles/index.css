@@ -693,8 +693,17 @@ body {
 }
 
 .som-toast--success {
-  border-color: rgba(16, 185, 129, 0.35);
-  box-shadow: 0 18px 40px rgba(16, 185, 129, 0.14);
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(240, 253, 244, 0.95);
+  box-shadow: 0 18px 40px rgba(34, 197, 94, 0.2);
+}
+
+.som-toast--success .som-toast__title {
+  color: #15803d;
+}
+
+.som-toast--success .som-toast__msg {
+  color: #166534;
 }
 
 .som-toast--error {
