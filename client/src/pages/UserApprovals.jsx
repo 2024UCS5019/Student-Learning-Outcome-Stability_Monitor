@@ -34,13 +34,18 @@ const UserApprovals = () => {
   );
 
   const approvedUsers = useMemo(() => {
-    const list = users.filter((u) => u?.role !== "Admin" && u?.isApproved === true);
+    const list = users.filter((u) => u?.role !== "Admin" && u?.isApproved === true && u?.role === "Viewer");
     return list.sort((a, b) => {
       const aTime = new Date(a?.approvedAt || a?.updatedAt || 0).getTime();
       const bTime = new Date(b?.approvedAt || b?.updatedAt || 0).getTime();
       return bTime - aTime;
     });
   }, [users]);
+
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyPageSize = 5;
+  const historyTotalPages = Math.ceil(approvedUsers.length / historyPageSize);
+  const pagedApprovedUsers = approvedUsers.slice((historyPage - 1) * historyPageSize, historyPage * historyPageSize);
 
   const approve = async (id) => {
     setError("");
@@ -180,7 +185,7 @@ const UserApprovals = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {approvedUsers.slice(0, 50).map((u) => (
+                {pagedApprovedUsers.map((u) => (
                   <tr key={u._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-slate-800">{u.name || "—"}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{u.email || "—"}</td>
@@ -195,9 +200,27 @@ const UserApprovals = () => {
                 ))}
               </tbody>
             </table>
-            {approvedUsers.length > 50 ? (
-              <p className="mt-3 text-xs text-slate-500">Showing latest 50 approvals.</p>
-            ) : null}
+            {historyTotalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-xs text-slate-500">Page {historyPage} of {historyTotalPages} ({approvedUsers.length} total)</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                    disabled={historyPage === 1}
+                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50"
+                  >
+                    Prev
+                  </button>
+                  <button
+                    onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
+                    disabled={historyPage === historyTotalPages}
+                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
