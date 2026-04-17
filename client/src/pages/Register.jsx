@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
+import { emitToast } from "../utils/toast";
 
 const Register = () => {
   const { register } = useAuth();
@@ -30,6 +31,11 @@ const Register = () => {
         role: "Viewer"
       });
       setSuccess("Account created. Please wait for admin approval before logging in.");
+      emitToast({
+        type: "success",
+        title: "Account created",
+        message: "Please wait for admin approval before logging in."
+      });
       setForm({ name: "", email: "", password: "" });
     } catch (err) {
       setError(err?.response?.data?.message || "Register failed");

@@ -4,6 +4,7 @@ import RoleGate from "../components/RoleGate";
 import PaginationControls from "../components/PaginationControls";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
+import { emitToast } from "../utils/toast";
 
 const NoteHistory = () => {
   const { user } = useAuth();
@@ -131,8 +132,10 @@ const NoteHistory = () => {
     try {
       if (editingId) {
         await api.put(`/note-history/${editingId}`, form);
+        emitToast({ type: "success", title: "Updated", message: "Feedback updated successfully." });
       } else {
         await api.post("/note-history", form);
+        emitToast({ type: "success", title: "Added", message: "Feedback saved successfully." });
       }
       setForm((prev) => ({
         ...prev,
@@ -172,7 +175,15 @@ const NoteHistory = () => {
 
   const deleteNote = async (id) => {
     if (!window.confirm("Delete this note? This action cannot be undone.")) return;
-    await api.delete(`/note-history/${id}`);
+    setError("");
+    try {
+      await api.delete(`/note-history/${id}`);
+      emitToast({ type: "success", title: "Deleted", message: "Feedback deleted." });
+      if (editingId === id) cancelEdit();
+      load();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to delete note");
+    }
   };
 
   return (
