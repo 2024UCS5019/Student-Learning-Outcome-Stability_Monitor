@@ -7,6 +7,103 @@ const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../utils/password
 const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const normalizeUsername = (value = "") => value.trim();
 const toEmailSlug = (value = "") => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+const isLocalHostname = (hostname = "") => {
+  const normalized = String(hostname || "").trim().toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1" || normalized.endsWith(".localhost");
+};
+
+const parseOrigin = (value = "") => {
+  try {
+    const url = new URL(String(value || ""));
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return "";
+  }
+};
+
+const parseAllowedOrigins = () =>
+  (process.env.CLIENT_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map(parseOrigin)
+    .filter(Boolean);
+
+const isOriginAllowed = (origin) => {
+  const normalized = parseOrigin(origin);
+  if (!normalized) return false;
+
+  const allowed = parseAllowedOrigins();
+  if (allowed.includes(normalized)) return true;
+
+  // Dev convenience: treat localhost and 127.0.0.1 origins as interchangeable.
+  try {
+    const url = new URL(normalized);
+    if (!isLocalHostname(url.hostname)) return false;
+    const altHost = url.hostname === "localhost" ? "127.0.0.1" : "localhost";
+    const alt = `${url.protocol}//${altHost}${url.port ? `:${url.port}` : ""}`;
+    return allowed.includes(alt);
+  } catch {
+    return false;
+  }
+};
+
+const inferClientUrl = (req) => {
+  const envClientUrl = String(process.env.CLIENT_URL || "").trim();
+  const envOrigin = parseOrigin(envClientUrl);
+
+  const refererOrigin = parseOrigin(req.get("referer") || req.get("referrer") || "");
+  const refererAllowed = refererOrigin && isOriginAllowed(refererOrigin);
+
+  if (refererAllowed) {
+    if (!envOrigin) return refererOrigin;
+    try {
+      const envHost = new URL(envOrigin).hostname;
+      const refHost = new URL(refererOrigin).hostname;
+      if (isLocalHostname(envHost) && !isLocalHostname(refHost)) return refererOrigin;
+    } catch {
+      // ignore
+    }
+  }
+
+  return envClientUrl || refererOrigin || "";
+};
+
+const inferGoogleRedirectUri = (req) => {
+  const envRedirect = String(process.env.GOOGLE_REDIRECT_URI || "").trim();
+  const computed = `${req.protocol}://${req.get("host")}/api/auth/google/callback`;
+  if (!envRedirect) return computed;
+
+  try {
+    const envHost = new URL(envRedirect).hostname;
+    const requestHost = String(req.hostname || "").trim().toLowerCase();
+    if (!isLocalHostname(requestHost) && isLocalHostname(envHost)) return computed;
+  } catch {
+    // ignore
+  }
+
+  return envRedirect;
+};
+
+const signOAuthState = (payload) => {
+  const secret = String(process.env.JWT_SECRET || "").trim();
+  if (!secret) return "";
+  try {
+    return jwt.sign(payload, secret, { expiresIn: "10m" });
+  } catch {
+    return "";
+  }
+};
+
+const readOAuthState = (token) => {
+  const secret = String(process.env.JWT_SECRET || "").trim();
+  if (!secret || !token) return null;
+  try {
+    return jwt.verify(String(token), secret);
+  } catch {
+    return null;
+  }
+};
 
 const buildUniqueInternalEmail = async (username) => {
   const baseSlug = toEmailSlug(username) || "user";
@@ -127,25 +224,44 @@ exports.googleAuth = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Google OAuth not configured. Please set up credentials in .env file.' });
   }
 
+  const redirectUri = inferGoogleRedirectUri(req);
+  const clientUrl = inferClientUrl(req);
+  const statePayload = {};
+  const stateClientOrigin = parseOrigin(clientUrl);
+  if (stateClientOrigin && isOriginAllowed(stateClientOrigin)) statePayload.clientOrigin = stateClientOrigin;
+  const state = Object.keys(statePayload).length ? signOAuthState(statePayload) : "";
+
   // Force the Google account chooser every time (useful when multiple accounts are signed in).
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,
-    redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+    redirect_uri: redirectUri,
     response_type: "code",
     scope: "profile email",
     prompt: "select_account"
   });
+  if (state) params.set("state", state);
 
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 });
 
 exports.googleCallback = asyncHandler(async (req, res) => {
   const { code } = req.query;
+  const redirectUri = inferGoogleRedirectUri(req);
+
+  const defaultClientUrl = String(process.env.CLIENT_URL || "").trim();
+  const state = readOAuthState(req.query.state);
+  const stateOrigin = parseOrigin(state?.clientOrigin || "");
+  const clientOrigin = stateOrigin && isOriginAllowed(stateOrigin) ? stateOrigin : "";
+  const clientUrl = clientOrigin || defaultClientUrl;
+  if (!clientUrl) {
+    return res.status(500).json({ message: "CLIENT_URL is not configured on the server." });
+  }
+
   const { data } = await require('axios').post('https://oauth2.googleapis.com/token', {
     code,
     client_id: process.env.GOOGLE_CLIENT_ID,
     client_secret: process.env.GOOGLE_CLIENT_SECRET,
-    redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+    redirect_uri: redirectUri,
     grant_type: 'authorization_code'
   });
   
@@ -155,21 +271,21 @@ exports.googleCallback = asyncHandler(async (req, res) => {
   
   const user = await User.findOne({ email: String(profile.email || "").toLowerCase().trim() });
   if (!user) {
-    return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent("Account not found. Contact Admin.")}`);
+    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Account not found. Contact Admin.")}`);
   }
 
   await normalizeLegacyStudentToViewer(user);
 
   if (user.role !== "Admin" && user.isApproved === false) {
-    return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent("Your account is pending admin approval.")}`);
+    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Your account is pending admin approval.")}`);
   }
 
   if (user.role === "Student" && user.isBlocked) {
-    return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent("Your account is blocked")}`);
+    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Your account is blocked")}`);
   }
   
   const token = generateToken(user._id);
-  res.redirect(`${process.env.CLIENT_URL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: user._id, name: user.name, email: user.email, role: user.role }))}`);
+  res.redirect(`${clientUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: user._id, name: user.name, email: user.email, role: user.role }))}`);
 });
 
 exports.approveUser = asyncHandler(async (req, res) => {
