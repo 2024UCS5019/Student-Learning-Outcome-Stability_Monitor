@@ -393,16 +393,28 @@ const NoteHistory = () => {
                       <button
                         type="button"
                         onClick={() => startEdit(n)}
-                        className="px-3 py-1.5 text-sm rounded-lg bg-sky-600 text-white hover:bg-sky-700"
+                        className="btn-press inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white/75 text-sky-700 shadow-sm backdrop-blur transition hover:bg-white hover:text-sky-800 focus:outline-none focus:ring-4 focus:ring-sky-200"
+                        aria-label="Edit note"
+                        title="Edit"
                       >
-                        Edit
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+                          <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                        </svg>
                       </button>
                       <button
                         type="button"
                         onClick={() => deleteNote(n._id)}
-                        className="px-3 py-1.5 text-sm rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                        className="btn-press inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white/75 text-rose-600 shadow-sm backdrop-blur transition hover:bg-white hover:text-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-200"
+                        aria-label="Delete note"
+                        title="Delete"
                       >
-                        Delete
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+                          <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          <path d="M6 7l1 14h10l1-14" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                          <path d="M9 7V4h6v3" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                        </svg>
                       </button>
                     </div>
                   </td>
