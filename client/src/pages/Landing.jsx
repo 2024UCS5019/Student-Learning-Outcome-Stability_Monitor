@@ -66,10 +66,10 @@ const Landing = () => {
 
   const snapshot = useMemo(
     () => [
-      "Approval workflow and account governance",
-      "Dashboard analytics with reviewer-friendly visuals",
-      "Faculty and subject ownership mapping",
-      "Student profiles with academic context"
+      "Outcome attainment tracking and stability insights",
+      "CO/PO mapping with reviewer-friendly visuals",
+      "Faculty and subject ownership workflows",
+      "Student profiles with marks and attendance context"
     ],
     []
   );
@@ -78,21 +78,21 @@ const Landing = () => {
     () => [
       {
         tone: "sky",
-        title: "Operations in one place",
+        title: "Outcome-first operations",
         body:
-          "Manage students, faculty, subjects, approvals, and activity history from one operational workspace."
+          "Manage students, faculty, subjects, approvals, and activity history from one integrated academic workspace."
       },
       {
         tone: "violet",
-        title: "Performance intelligence",
+        title: "Stability analytics",
         body:
-          "Spot weak subjects, risk patterns, attendance drift, and trend movement without manual spreadsheet work."
+          "See attainment trends, stability drift, weak subjects, and risk signals without manual spreadsheet work."
       },
       {
         tone: "mint",
         title: "Role-aware experience",
         body:
-          "Admins, faculty, students, and pending reviewers each see the right workflows, permissions, and visibility."
+          "Admins, faculty, students, and reviewers each see the right workflows, permissions, and visibility."
       }
     ],
     []
@@ -101,19 +101,19 @@ const Landing = () => {
   const trend2035 = useMemo(
     () => [
       {
-        title: "2035 risk signals",
+        title: "Outcome stability signals",
         body:
-          "Early warnings based on attendance drift, grade volatility, and subject difficulty—explained with reviewer-safe context."
+          "Early warnings based on attendance drift, grade volatility, and subject difficulty, explained with review-ready context."
       },
       {
-        title: "Consent-aware analytics",
+        title: "Evidence-ready views",
         body:
-          "Permission-first data views that keep governance, auditing, and student privacy aligned as datasets expand."
+          "Audit-friendly reporting that supports approvals and review discussions without exposing unnecessary detail."
       },
       {
-        title: "Live cohort intelligence",
+        title: "Cohort comparison",
         body:
-          "Compare groups by semester, subject owner, and intervention status using KPI tiles and trend movement views."
+          "Compare cohorts by semester, subject, and owner using KPI tiles and trend movement views."
       }
     ],
     []
@@ -132,18 +132,18 @@ const Landing = () => {
   const previewCards = useMemo(
     () => [
       {
-        title: "Executive dashboard",
-        desc: "KPI summary, weak segments, and intervention signals",
+        title: "Outcome dashboard",
+        desc: "Attainment KPIs, weak segments, and stability signals",
         accent: "from-sky-500/30 via-indigo-500/10 to-transparent"
       },
       {
-        title: "Student operations",
-        desc: "Searchable records with academic and demographic context",
+        title: "Student profiles",
+        desc: "Searchable records with marks, attendance, and context",
         accent: "from-indigo-500/25 via-slate-900/10 to-transparent"
       },
       {
-        title: "Performance workspace",
-        desc: "Semester records, grades, attendance, and analytics",
+        title: "Attainment workspace",
+        desc: "Subject outcomes, CO/PO mapping, and analytics",
         accent: "from-violet-500/25 via-slate-900/10 to-transparent"
       }
     ],
@@ -159,10 +159,10 @@ const Landing = () => {
         <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold tracking-[0.34em] text-slate-200/70">
-              SMART PERFORMANCE INTELLIGENCE DASHBOARD
+              STUDENT LEARNING OUTCOME STABILITY MONITOR
             </div>
             <div className="mt-2 text-sm text-slate-200/80">
-              Academic operations, governance, and analytics in one product.
+              Outcome attainment tracking, stability insights, and academic governance in one platform.
             </div>
           </div>
           <nav className="flex items-center gap-3 sm:gap-4">
@@ -177,7 +177,7 @@ const Landing = () => {
                 href="#system"
                 className="text-sm font-medium text-slate-200/80 transition hover:text-white"
               >
-                Scrollytelling
+                Insights
               </a>
               <a
                 href="#preview"
@@ -217,11 +217,11 @@ const Landing = () => {
             <div className="lg:col-span-7">
               <Pill tone="sky">Submission-ready academic platform</Pill>
               <h1 className="mt-6 text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
-                Academic performance, faculty oversight, and student operations in one polished system.
+                Outcome attainment, stability insights, and academic operations in one polished system.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-200/80">
-                SPID turns scattered academic records into a clear operating layer for institutions. It combines approvals,
-                subject planning, performance tracking, and risk visibility into one experience that feels cohesive in a demo.
+                Student Learning Outcome Stability Monitor brings marks, attendance, subjects, and approvals into one coherent workflow. It helps
+                teams track attainment, understand stability drift, and present evidence-ready analytics during reviews.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -324,18 +324,18 @@ const Landing = () => {
             <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-xl">
                 <div className="text-xs font-semibold tracking-[0.32em] text-slate-200/70">
-                  2035 TRENDING FEATURES
+                  FUTURE-READY FEATURES
                 </div>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                   Built to feel modern now, and future-ready later
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-slate-200/80">
-                  A forward-looking layer that keeps analytics reviewer-safe while still communicating “what’s next” for academic ops.
+                  A forward-looking layer that keeps analytics review-safe while still communicating what's next for academic outcome tracking.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/40 px-6 py-5">
                 <div className="text-xs font-semibold tracking-[0.26em] text-slate-200/70 uppercase">
-                  Governance signals
+                  Outcome signals
                 </div>
                 <div className="mt-3 grid gap-2 text-sm text-slate-100">
                   <div className="flex items-center justify-between gap-4">
@@ -405,20 +405,20 @@ const Landing = () => {
             <div className="grid gap-10 lg:grid-cols-12 lg:items-start">
               <div className="lg:col-span-7">
                 <div className="text-xs font-semibold tracking-[0.32em] text-slate-200/70">
-                  SCROLLYTELLING SYSTEM
+                  INSIGHTS SYSTEM
                 </div>
                 <h2 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                  A narrative layer that feels like enterprise software
+                  A narrative layer that feels review-ready
                 </h2>
                 <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-200/80">
-                  Motion is used as product communication: progressive context, spatial layering, and collaborative signals that make the platform
-                  feel sophisticated without feeling theatrical.
+                  The UI communicates progress with clear context and layered panels so reviewers can follow what changed, why it matters, and what
+                  action is next.
                 </p>
               </div>
               <div className="lg:col-span-5 lg:pt-9">
                 <div className="rounded-3xl border border-white/10 bg-white/[0.06] px-7 py-6 shadow-[0_30px_100px_rgba(2,6,23,0.55)] backdrop-blur">
                   <div className="text-sm font-semibold text-white">Motion style</div>
-                  <div className="mt-2 text-sm text-slate-200/80">Restrained, data-first, reviewer-safe</div>
+                  <div className="mt-2 text-sm text-slate-200/80">Restrained, outcome-first, review-safe</div>
                 </div>
               </div>
             </div>
@@ -594,7 +594,7 @@ const Landing = () => {
                       <div className="rounded-[2rem] border border-white/10 bg-slate-950/50 p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
                         <div className="flex items-center justify-between">
                           <div className="text-xs font-semibold tracking-[0.3em] text-slate-200/70 uppercase">
-                            SPID
+                            SLO Monitor
                           </div>
                           <div className="text-xs font-semibold text-slate-200/70">Analytics Overview</div>
                         </div>
@@ -616,8 +616,8 @@ const Landing = () => {
           <footer className="mt-20 border-t border-white/10 py-10">
             <div className="flex flex-col gap-3 text-sm text-slate-200/70 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <span className="font-semibold text-white">Student Outcome Monitor</span>{" "}
-                <span className="text-slate-200/60">— SPID landing experience</span>
+                <span className="font-semibold text-white">Student Learning Outcome Stability Monitor</span>{" "}
+                <span className="text-slate-200/60">— landing experience</span>
               </div>
               <div className="flex flex-wrap items-center gap-4">
                 <Link to="/login" className="font-semibold text-slate-100 transition hover:text-white">
