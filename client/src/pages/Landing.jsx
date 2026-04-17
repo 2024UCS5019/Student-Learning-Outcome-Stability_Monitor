@@ -264,30 +264,6 @@ const Landing = () => {
     []
   );
 
-  const previewCards = useMemo(
-    () => [
-      {
-        kind: "dashboard",
-        title: "Outcome dashboard",
-        desc: "Attainment KPIs, weak segments, and stability signals",
-        accent: "from-sky-500/30 via-indigo-500/10 to-transparent"
-      },
-      {
-        kind: "profiles",
-        title: "Student profiles",
-        desc: "Searchable records with marks, attendance, and context",
-        accent: "from-indigo-500/25 via-slate-900/10 to-transparent"
-      },
-      {
-        kind: "mapping",
-        title: "Attainment workspace",
-        desc: "Subject outcomes, CO/PO mapping, and analytics",
-        accent: "from-violet-500/25 via-slate-900/10 to-transparent"
-      }
-    ],
-    []
-  );
-
   const activeLaneMeta =
     lanes.find((lane) => lane.key === activeLane) || lanes[0];
 
@@ -316,12 +292,6 @@ const Landing = () => {
                 className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
               >
                 Insights
-              </a>
-              <a
-                href="#preview"
-                className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
-              >
-                Preview
               </a>
             </div>
             {user ? (
@@ -368,13 +338,6 @@ const Landing = () => {
                   className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-[0_30px_80px_rgba(2,6,23,0.14)] transition hover:bg-slate-800"
                 >
                   Explore the product
-                  <ArrowRight />
-                </a>
-                <a
-                  href="#preview"
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-900 bg-transparent px-6 py-3 text-sm font-semibold text-slate-900 shadow-[0_30px_80px_rgba(2,6,23,0.06)] transition hover:bg-slate-900 hover:text-white"
-                >
-                  View interface preview
                   <ArrowRight />
                 </a>
               </div>
@@ -445,13 +408,6 @@ const Landing = () => {
                       Open sign-in
                       <ArrowRight />
                     </Link>
-                    <a
-                      href="#preview"
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-sky-700 transition hover:text-sky-900"
-                    >
-                      View interface preview
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
                   </div>
                 </div>
               </div>
@@ -692,56 +648,6 @@ const Landing = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          </section>
-
-          <section id="preview" className="mt-24 scroll-mt-16">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-2xl">
-                <div className="text-xs font-semibold tracking-[0.32em] text-slate-600">
-                  INTERFACE PREVIEW
-                </div>
-                <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                  A stronger first impression for reviewers
-                </h2>
-                <p className="mt-5 text-base leading-relaxed text-slate-600">
-                  Reviewers should immediately see a presentable product story, seeded operational data, and screens that look ready for discussion.
-                </p>
-              </div>
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-[0_26px_70px_rgba(2,6,23,0.12)] transition hover:bg-slate-800"
-              >
-                Open sign-in
-                <ArrowRight />
-              </Link>
-            </div>
-
-            <div className="mt-10 grid gap-8 lg:grid-cols-3">
-              {previewCards.map((card) => (
-                <div
-                  key={card.title}
-                  className="overflow-hidden rounded-[2.5rem] border border-slate-200/70 bg-white/80 shadow-[0_30px_90px_rgba(2,6,23,0.10)] backdrop-blur"
-                >
-                  <div className="border-b border-slate-200/70 bg-white px-8 py-7">
-                    <div className="text-2xl font-semibold tracking-tight text-slate-950">{card.title}</div>
-                    <div className="mt-3 text-sm text-slate-600">{card.desc}</div>
-                  </div>
-                  <div className={`relative bg-gradient-to-br ${card.accent}`}>
-                    <div className="p-8">
-                      <div className="rounded-[2rem] border border-slate-200/70 bg-white/70 p-6 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]">
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs font-semibold tracking-[0.3em] text-slate-600 uppercase">
-                            Analytics
-                          </div>
-                          <div className="text-xs font-semibold text-slate-600">Analytics Overview</div>
-                        </div>
-                        <PreviewMock kind={card.kind} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </section>
 
