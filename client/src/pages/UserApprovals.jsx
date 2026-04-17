@@ -33,6 +33,15 @@ const UserApprovals = () => {
     [users]
   );
 
+  const approvedUsers = useMemo(() => {
+    const list = users.filter((u) => u?.role !== "Admin" && u?.isApproved === true);
+    return list.sort((a, b) => {
+      const aTime = new Date(a?.approvedAt || a?.updatedAt || 0).getTime();
+      const bTime = new Date(b?.approvedAt || b?.updatedAt || 0).getTime();
+      return bTime - aTime;
+    });
+  }, [users]);
+
   const approve = async (id) => {
     setError("");
     try {
@@ -140,6 +149,55 @@ const UserApprovals = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 card-panel p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-ink">Approval History</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {approvedUsers.length} approved account{approvedUsers.length === 1 ? "" : "s"}
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="mt-4 text-sm text-slate-600">Loading history...</p>
+        ) : approvedUsers.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">No approved users yet.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[860px]">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Approved</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Approved By</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {approvedUsers.slice(0, 50).map((u) => (
+                  <tr key={u._id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-slate-800">{u.name || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-700">{u.email || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-700">{u.role || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      {u.approvedAt ? new Date(u.approvedAt).toLocaleString() : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      {u.approvedBy?.name || u.approvedBy?.email || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {approvedUsers.length > 50 ? (
+              <p className="mt-3 text-xs text-slate-500">Showing latest 50 approvals.</p>
+            ) : null}
           </div>
         )}
       </div>

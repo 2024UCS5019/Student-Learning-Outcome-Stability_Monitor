@@ -20,7 +20,9 @@ router.patch("/users/:id/approve", auth, roles("Admin"), approveUser);
 router.get("/users", auth, roles("Admin"), asyncHandler(async (req, res) => {
   const { role } = req.query;
   const filter = role ? { role } : {};
-  const users = await User.find(filter).select("-password");
+  const users = await User.find(filter)
+    .select("-password")
+    .populate("approvedBy", "name email role");
   res.json(users);
 }));
 

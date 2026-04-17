@@ -309,6 +309,8 @@ exports.approveUser = asyncHandler(async (req, res) => {
   }
 
   user.isApproved = true;
+  if (!user.approvedAt) user.approvedAt = new Date();
+  if (!user.approvedBy && req.user?._id) user.approvedBy = req.user._id;
   await user.save();
 
   res.json({ message: "User approved" });

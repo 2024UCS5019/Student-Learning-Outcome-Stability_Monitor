@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema(
     facultyCode: { type: String, unique: true, sparse: true, trim: true },
     isBlocked: { type: Boolean, default: false },
     isApproved: { type: Boolean, default: true },
+    approvedAt: { type: Date, default: null },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     role: { type: String, enum: ["Admin", "Faculty", "Student", "Viewer"], default: "Student" }
   },
   { timestamps: true }
