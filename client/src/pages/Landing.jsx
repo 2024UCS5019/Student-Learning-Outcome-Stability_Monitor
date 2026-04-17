@@ -60,6 +60,141 @@ const Pill = ({ children, tone = "sky" }) => {
   );
 };
 
+const PreviewMock = ({ kind }) => {
+  if (kind === "dashboard") {
+    return (
+      <div className="mt-6 grid gap-4">
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Attainment", value: "78%" },
+            { label: "Stability", value: "0.86" },
+            { label: "Weak COs", value: "2" }
+          ].map((kpi) => (
+            <div
+              key={kpi.label}
+              className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3"
+            >
+              <div className="text-[11px] font-semibold text-slate-500">{kpi.label}</div>
+              <div className="mt-1 text-lg font-semibold text-slate-900">{kpi.value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold text-slate-600">Stability trend</div>
+            <div className="text-xs font-semibold text-slate-500">Last 6 semesters</div>
+          </div>
+          <svg
+            className="mt-3 h-24 w-full"
+            viewBox="0 0 240 96"
+            fill="none"
+            role="img"
+            aria-label="Stability trend line chart"
+          >
+            <path
+              d="M12 70C42 56 62 62 88 48C114 34 136 42 158 30C178 20 200 22 228 12"
+              stroke="rgba(2,132,199,0.95)"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            <path
+              d="M12 70C42 56 62 62 88 48C114 34 136 42 158 30C178 20 200 22 228 12L228 96L12 96Z"
+              fill="rgba(2,132,199,0.10)"
+            />
+            {[12, 52, 92, 132, 172, 212].map((x) => (
+              <circle key={x} cx={x} cy="78" r="1.5" fill="rgba(15,23,42,0.22)" />
+            ))}
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === "profiles") {
+    return (
+      <div className="mt-6 grid gap-3">
+        <div className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3">
+          <div className="text-xs font-semibold text-slate-600">Student snapshot</div>
+          <div className="text-xs font-semibold text-slate-500">Attendance + marks</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-4">
+          <div className="grid grid-cols-12 gap-3 text-[11px] font-semibold text-slate-500">
+            <div className="col-span-6">Name</div>
+            <div className="col-span-3 text-right">Attendance</div>
+            <div className="col-span-3 text-right">Avg</div>
+          </div>
+          <div className="mt-3 grid gap-3">
+            {[
+              { name: "Abi S.", att: "92%", avg: "81" },
+              { name: "Mathi R.", att: "86%", avg: "76" },
+              { name: "Kavi P.", att: "78%", avg: "69" }
+            ].map((row) => (
+              <div
+                key={row.name}
+                className="grid grid-cols-12 items-center gap-3 rounded-2xl border border-slate-200/70 bg-white px-3 py-3"
+              >
+                <div className="col-span-6 flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-slate-900/10" />
+                  <div className="text-sm font-semibold text-slate-900">{row.name}</div>
+                </div>
+                <div className="col-span-3 text-right text-sm font-semibold text-slate-700">{row.att}</div>
+                <div className="col-span-3 text-right text-sm font-semibold text-slate-700">{row.avg}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 grid gap-4">
+      <div className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3">
+        <div className="text-xs font-semibold text-slate-600">CO → PO mapping</div>
+        <div className="text-xs font-semibold text-slate-500">Matrix view</div>
+      </div>
+      <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-4">
+        <div className="grid grid-cols-6 gap-2 text-[11px] font-semibold text-slate-500">
+          <div />
+          {["PO1", "PO2", "PO3", "PO4", "PO5"].map((po) => (
+            <div key={po} className="text-center">
+              {po}
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 grid gap-2">
+          {[
+            { co: "CO1", cells: [3, 2, 1, 2, 0] },
+            { co: "CO2", cells: [2, 3, 2, 1, 1] },
+            { co: "CO3", cells: [1, 2, 3, 2, 2] }
+          ].map((row) => (
+            <div key={row.co} className="grid grid-cols-6 gap-2">
+              <div className="flex items-center text-[11px] font-semibold text-slate-600">{row.co}</div>
+              {row.cells.map((v, idx) => {
+                const tone =
+                  v === 3 ? "bg-emerald-500/25" : v === 2 ? "bg-sky-500/20" : v === 1 ? "bg-amber-500/20" : "bg-slate-900/5";
+                return (
+                  <div
+                    key={`${row.co}-${idx}`}
+                    className={`flex h-9 items-center justify-center rounded-xl border border-slate-200/70 ${tone} text-xs font-semibold text-slate-700`}
+                  >
+                    {v === 0 ? "—" : v}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+          <div>1 = Low</div>
+          <div>2 = Medium</div>
+          <div>3 = High</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Landing = () => {
   const { user } = useAuth();
   const [activeLane, setActiveLane] = useState("Admin");
@@ -132,16 +267,19 @@ const Landing = () => {
   const previewCards = useMemo(
     () => [
       {
+        kind: "dashboard",
         title: "Outcome dashboard",
         desc: "Attainment KPIs, weak segments, and stability signals",
         accent: "from-sky-500/30 via-indigo-500/10 to-transparent"
       },
       {
+        kind: "profiles",
         title: "Student profiles",
         desc: "Searchable records with marks, attendance, and context",
         accent: "from-indigo-500/25 via-slate-900/10 to-transparent"
       },
       {
+        kind: "mapping",
         title: "Attainment workspace",
         desc: "Subject outcomes, CO/PO mapping, and analytics",
         accent: "from-violet-500/25 via-slate-900/10 to-transparent"
@@ -197,13 +335,13 @@ const Landing = () => {
               <>
                 <Link
                   to="/login"
-                  className="rounded-full border border-slate-200/70 bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-[0_26px_70px_rgba(2,6,23,0.10)] transition hover:bg-slate-50"
+                  className="rounded-full border border-slate-900 bg-transparent px-5 py-2 text-sm font-semibold text-slate-900 shadow-[0_26px_70px_rgba(2,6,23,0.06)] transition hover:bg-slate-900 hover:text-white"
                 >
                   Sign in
                 </Link>
                 <Link
                   to="/register"
-                  className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white shadow-[0_26px_70px_rgba(2,6,23,0.14)] transition hover:bg-sky-500"
+                  className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-[0_26px_70px_rgba(2,6,23,0.12)] transition hover:bg-slate-800"
                 >
                   Request access
                 </Link>
@@ -234,7 +372,7 @@ const Landing = () => {
                 </a>
                 <a
                   href="#preview"
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-[0_30px_80px_rgba(2,6,23,0.08)] transition hover:bg-slate-50"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-900 bg-transparent px-6 py-3 text-sm font-semibold text-slate-900 shadow-[0_30px_80px_rgba(2,6,23,0.06)] transition hover:bg-slate-900 hover:text-white"
                 >
                   View interface preview
                   <ArrowRight />
@@ -302,7 +440,7 @@ const Landing = () => {
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <Link
                       to="/login"
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-900 bg-transparent px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-900 hover:text-white"
                     >
                       Open sign-in
                       <ArrowRight />
@@ -572,7 +710,7 @@ const Landing = () => {
               </div>
               <Link
                 to="/login"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-sky-700 transition hover:text-sky-900"
+                className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-[0_26px_70px_rgba(2,6,23,0.12)] transition hover:bg-slate-800"
               >
                 Open sign-in
                 <ArrowRight />
@@ -598,13 +736,7 @@ const Landing = () => {
                           </div>
                           <div className="text-xs font-semibold text-slate-600">Analytics Overview</div>
                         </div>
-                        <div className="mt-6 grid gap-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="h-20 rounded-2xl bg-slate-900/10" />
-                            <div className="h-20 rounded-2xl bg-slate-900/5" />
-                          </div>
-                          <div className="h-24 rounded-2xl bg-slate-900/5" />
-                        </div>
+                        <PreviewMock kind={card.kind} />
                       </div>
                     </div>
                   </div>
